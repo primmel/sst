@@ -122,8 +122,11 @@ export class VirtualClock {
   mode(): ClockMode { return this.#mode }
   setMode(m: ClockMode): void {
     if (m === this.#mode) return
-    if (m === 'wall') this.#wallAnchor = Date.now() / 1000
-    else this.#virtual = this.now()
+    // entering wall mode rebases virtual to the epoch (servedAt
+    // timestamps must compare against clients' wall clocks); leaving
+    // it freezes the epoch into the virtual timeline.
+    this.#virtual = Date.now() / 1000
+    this.#wallAnchor = Date.now() / 1000
     this.#mode = m
   }
   advance(seconds: number): void {
