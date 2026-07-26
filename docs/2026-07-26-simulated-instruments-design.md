@@ -4,9 +4,9 @@
 > implementation plan. **Scope of v1:** the framework (`@sim/core`),
 > the first instrument family (`@sim/lc500`, simulated ACME LC-500
 > load cells), both GraphQL channels, the IOS-style console, the
-> in-app web terminal, and guided practice flows. The SMART-side
-> connector + wind-tunnel acceptance e2e (C6) lands after smart
-> task 35.
+> in-app web terminal **with the virtual-bench visualization**, and
+> guided practice flows. The SMART-side connector + wind-tunnel
+> acceptance e2e (C6) lands after smart task 35.
 >
 > **Framing (user, 2026-07-26):** not "one model of load cell" — a
 > simulation framework for the R 60 *kinds and families* of load
@@ -298,12 +298,24 @@ apply per template.
 
 ## 9. The web terminal + practice flows (SMART app)
 
-- A house-style island at `/app/sim`: scrollback + prompt component
-  (no xterm dependency), browser → sim direct (CORS). The app's own
-  logic never calls `/world`; the terminal is *user*-driven — the
-  user plays the physical world.
+- A house-style island at `/app/sim`, browser → sim direct (CORS).
+  The app's own logic never calls `/world`; the terminal is
+  *user*-driven — the user plays the physical world. Two panes:
+  1. **The terminal** — scrollback + prompt component (no xterm
+     dependency): the console grammar of §7.
+  2. **The virtual bench** (in v1 per user decision) — a WebGPU/WebGL
+     rendering of the bench, **fed exclusively by `/world` state**
+     (rendering, never a physics input — §4.5): the cell visibly
+     compressing (exaggerated strain map per construction profile),
+     the weight landing/removing, chamber dials (temperature,
+     humidity, pressure) sweeping with the D 11 profile, the virtual
+     clock, and the indication display reading `/twin` — the user
+     sees instrument-view and reality-view side by side, the
+     epistemic split made visceral. Renderer: a small WebGL2 (or
+     WebGPU-with-fallback) scene owned by the app; the cell geometry
+     is a stylized asset per construction profile, not a CAD mesh.
 - **Practice flows** (app-side content, browser-owned — not generated):
-  1. **Free play** — the raw terminal.
+  1. **Free play** — the raw terminal + bench.
   2. **Guided R 60-2 walkthrough** — the
      `measurement-error-repeatability-mdlo` test (smart's R34 pilot
      process): the flow prompts "place 40 kg", polls `/twin` until the
@@ -354,12 +366,13 @@ apply per template.
 | C2 | `/world` schema + server + console | C1 | parallel |
 | C3 | `/twin` schema generation + conformance check | C1 (types) | parallel |
 | C4 | `@sim/lc500`: digital + analogue-passive stacks, compression profile, scenarios, bin | C1 | parallel |
-| C5 | web terminal + practice flows (smart app) | C2 (terminal); test-run.service | overlaps |
+| C5a | web terminal + practice flows (smart app) | C2 (terminal); test-run.service | overlaps |
+| C5b | virtual-bench visualization (WebGL2/WebGPU renderer fed by `/world`; stylized profile assets) | C2 (state), C5a (the island) | overlaps |
 | C6 | SMART `graphql` connector + wind-tunnel e2e | smart task 35 | deferred |
 
-C2/C3/C4 run concurrently after C1's types land (≤3 agents at the
-plateau). This lane has **zero merge contention** with the smart-repo
-and kernel lanes running in parallel.
+C2/C3/C4 run concurrently after C1's types land; C5a/C5b overlap in
+the app (≤3 agents at the plateau). This lane has **zero merge
+contention** with the smart-repo and kernel lanes running in parallel.
 
 ## 13. Explicit non-goals + design notes (v1)
 
