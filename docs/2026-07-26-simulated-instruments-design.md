@@ -300,6 +300,27 @@ New family templates (analogue-passive × shear-beam, digital ×
 single-point, …) are authored as definition records; the presets
 apply per template.
 
+### 8.1 Fidelity scenarios (the twin-certification wind tunnel)
+
+A second scenario class injects **twin infidelity** — the physics is
+honest, but the twin's *served* values diverge from the instrument's
+true state. These exist for the future **Digital Twin certification**
+program (`smart/TODO.roadmap/63`): twin fidelity — served value ≡
+physical state within bounds + freshness — can only be *measured* by
+a vantage that sees both channels, which is exactly the sim's
+construction:
+
+| Scenario | Knob | What a twin-fidelity check must do |
+|---|---|---|
+| `lying-twin` | served indication offset/drift from the true indication (a firmware-mapping fault, not physics) | catch the divergence at probe points (served vs reference beyond the declared bound) |
+| `stale-twin` | `servedAt` lags beyond the declared `fresh_within` | flag the freshness violation even though values are accurate |
+
+The certification vantage is a *third actor* (not SMART-the-app, not
+the instrument): it reads `/world` reference values and `/twin`
+served values at scheduled probe points and judges fidelity — the
+sim thus demonstrates both a passing faithful twin and a *caught*
+lying twin before the program ever certifies a real one.
+
 ## 9. Standalone operation (runnable outside SMART)
 
 The sim is a product in its own right (user direction, 2026-07-26):
