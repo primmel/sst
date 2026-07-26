@@ -1,7 +1,12 @@
 # sim-instruments — Simulated SMART devices
 
-A library of **simulated measuring instruments** — software wind tunnels
-for the Primmel/OIML SMART ecosystem.
+A library of **simulated measuring instruments** — software test
+benches for the Primmel/OIML SMART ecosystem: controlled physical
+worlds (loads, environment, time) in which the operator sets the
+ground truth, so the correct verdict is known in advance. (The
+"wind tunnel" idea, per instrument kind: a bench for load cells, a
+flow rig for water meters, a road for radar, a gas bench for
+analyzers.)
 
 Each simulated instrument:
 

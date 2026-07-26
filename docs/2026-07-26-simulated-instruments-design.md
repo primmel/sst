@@ -6,7 +6,7 @@
 > load cells), both GraphQL channels, the IOS-style console, the
 > **standalone** virtual-bench web app (runnable with zero SMART —
 > §9) — also embedded in the SMART app — and guided practice flows.
-> The SMART-side connector + wind-tunnel acceptance e2e (C6) lands
+> The SMART-side connector + test-bench acceptance e2e (C6) lands
 > after smart task 35.
 >
 > **Framing (user, 2026-07-26):** not "one model of load cell" — a
@@ -26,11 +26,22 @@ values poked by test narration, with no physical world behind them.
 
 A **simulated SMART device** changes that: a software simulation of a
 Primmel-integrated instrument, running as a separate process, that
-SMART talks to *byte-for-byte as it would to a real instrument*. It
-is a **wind tunnel**: the operator sets the ground truth (loads,
-environment, time, physics coefficients), so the correct verdict is
+SMART talks to *byte-for-byte as it would to a real instrument*. For
+a load cell it is a **simulated test bench** — deadweight and
+environmental chamber and instrument under test — and the general
+idea (the "wind tunnel" analogy): a *controlled physical world in
+which the operator sets the ground truth*, so the correct verdict is
 known in advance — the platform's own test procedures, verdict chain,
 and compliance monitor can be validated against reality-that-we-control.
+
+The rig is instrument-kind-specific: a bench for load cells (force +
+environment), a flow rig for water meters (R 49 — genuine fluid
+simulation), a road/target simulator for radar speed meters (R 91),
+a gas bench for analyzers (R 144). The framework's `/world` actuation
+vocabulary is authored per kind; time/environment/scenario come from
+core. (Terminology note, 2026-07-26: "wind tunnel" was the user's
+analogy for the epistemic property, never a claim that a load cell
+involves flow — a load cell is practically a scale.)
 
 And it is a **teaching machine**: a console and a web terminal let a
 user perform simulated physical activity step by step — place a load,
@@ -151,7 +162,7 @@ Per the R 60 `technology` attribute values:
 |---|---|
 | analogue-passive | none — raw mV/V bridge output; the *indication* forms downstream (see the indicator-pairing note, §14) |
 | analogue-active | amplifier: offset, drift, noise; output stage (4–20 mA / 0–10 V) |
-| digital | in-cell ADC: quantization at converter resolution; firmware: digital filtering (response time vs noise), linearization, **temperature compensation with residual error** (a prime wind-tunnel knob) |
+| digital | in-cell ADC: quantization at converter resolution; firmware: digital filtering (response time vs noise), linearization, **temperature compensation with residual error** (a prime bench knob) |
 | digital + further processing | + self-diagnostics / fault detection (the R 60 `self_test` behavior), richer compensation models |
 
 ### 4.4 Instrument definition
@@ -284,7 +295,7 @@ The **console** (readline client; also embedded in the web terminal):
 The console itself teaches the epistemic split: the two `show`
 commands answer from different channels on purpose.
 
-## 8. Scenarios (the wind-tunnel knobs)
+## 8. Scenarios (the bench knobs)
 
 A **scenario** = an instrument definition + a physics-preset name —
 data, not code. The registry lists them per family template:
@@ -300,7 +311,7 @@ New family templates (analogue-passive × shear-beam, digital ×
 single-point, …) are authored as definition records; the presets
 apply per template.
 
-### 8.1 Fidelity scenarios (the twin-certification wind tunnel)
+### 8.1 Fidelity scenarios (the twin-certification bench)
 
 A second scenario class injects **twin infidelity** — the physics is
 honest, but the twin's *served* values diverge from the instrument's
@@ -389,7 +400,7 @@ required.
   subscription transports); a deployment binding registers the sim's
   `/twin` endpoint; the task-34 monitor accrues verdicts against
   sim-served values.
-- **The wind-tunnel acceptance e2e** (smart repo): boot the sim →
+- **The test-bench acceptance e2e** (smart repo): boot the sim →
   bind the gateway → monitor accrues history → inject creep via
   `/world` → verdict `fail`; kill the feed → `indeterminate`; inject
   fault → operational state `fault` opens a service case.
@@ -427,7 +438,7 @@ required.
 | C4 | `@sim/lc500`: digital + analogue-passive stacks, compression profile, scenarios, bin | C1 | parallel |
 | C5a | SMART embed of `@sim/bench` at `/app/sim` + practice flows (smart app) | C5b (the bench package); test-run.service | overlaps |
 | C5b | the bench SPA: terminal pane + virtual-bench visualization (WebGL2 renderer fed by `/world`; stylized profile assets) + "How it works" pane | C2 (state) | overlaps |
-| C6 | SMART `graphql` connector + wind-tunnel e2e | smart task 35 | deferred |
+| C6 | SMART `graphql` connector + test-bench e2e | smart task 35 | deferred |
 
 C2/C3/C4 run concurrently after C1's types land; C5b builds beside
 them and C5a embeds it in the app (≤3 agents at the plateau). This
