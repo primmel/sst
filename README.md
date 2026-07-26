@@ -24,3 +24,13 @@ against the `acme-lc500` product reference package in
 Docs: the design is `docs/2026-07-26-simulated-instruments-design.md`.
 Doctrine background: [primmel-oiml-smart](https://www.primmel.org/primmel-oiml-smart/)
 chapters 14–15.
+
+## Status
+
+Design approved; implementation starting. The standalone promise:
+`git clone … && npm install && npm start` boots a simulated load
+cell with its console, its GraphQL channels (with GraphiQL
+playgrounds), and the virtual-bench web app at
+`http://localhost:5290/` — no SMART checkout, no Primmel knowledge
+required.
+

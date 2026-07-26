@@ -26,11 +26,17 @@ interface, simulated actions, the two-schema topology).
 
 ## Layout
 
-- `packages/core` (@sim/core) — the framework: physics primitives,
-  virtual clock, dual-schema server, twin-schema generator, console
-  engine. Depends only on primmel-ts (`.prl` parsing), graphql-yoga.
-- `packages/lc500` (@sim/lc500) — the simulated ACME LC-500 load cell:
-  the load-cell signal chain, scenarios, process entry.
+- `packages/core` (@sim/core) — the framework: physics stages and
+  families, the OIML D 11 environment layer, virtual clock,
+  dual-schema server, twin-schema generator, console engine. Depends
+  only on primmel-ts (`.prl` parsing — build-time only), graphql,
+  graphql-yoga.
+- `packages/lc500` (@sim/lc500) — the simulated ACME LC-500 family:
+  the instrument definition, scenarios, process entry. Boots with
+  zero SMART (the twin schema is baked at pack time).
+- `packages/lc500/bench` (@sim/bench) — the standalone bench SPA
+  (terminal + bench + "How it works" panes), served by the sim at
+  `/` and embedded by the SMART app. One codebase, two hosts.
 - `e2e/` — boot-the-process, drive-both-channels end-to-end tests.
 - `docs/` — the design doc and any later architecture notes.
 

@@ -4,9 +4,10 @@
 > implementation plan. **Scope of v1:** the framework (`@sim/core`),
 > the first instrument family (`@sim/lc500`, simulated ACME LC-500
 > load cells), both GraphQL channels, the IOS-style console, the
-> in-app web terminal **with the virtual-bench visualization**, and
-> guided practice flows. The SMART-side connector + wind-tunnel
-> acceptance e2e (C6) lands after smart task 35.
+> **standalone** virtual-bench web app (runnable with zero SMART —
+> §9) — also embedded in the SMART app — and guided practice flows.
+> The SMART-side connector + wind-tunnel acceptance e2e (C6) lands
+> after smart task 35.
 >
 > **Framing (user, 2026-07-26):** not "one model of load cell" — a
 > simulation framework for the R 60 *kinds and families* of load
@@ -84,14 +85,17 @@ packages/
     src/time.ts             virtual clock (manual-step deterministic; wall-clock opt-in)
     src/scenario.ts         named instrument definitions + physics presets (§8)
     src/twin-schema.ts      package → /twin GraphQL schema + startup conformance check
-    src/world-schema.ts     generic simulated-actions schema (§6)
+    src/world-schema.ts     generic simulated-actions schema (§7)
     src/server.ts           dual-schema HTTP server (graphql-yoga, SSE subscriptions)
     src/console/            IOS-like console engine (grammar + readline client)
   lc500/                    @sim/lc500 — the simulated ACME LC-500 family
     src/instrument.ts       the LC-500 instrument definition (family template + parameters)
     src/world.ts            load-cell actuation (placeLoad, removeLoad)
     src/scenarios.ts        good-cell, creep-cell, temp-cell, drift-cell (per template)
-    src/bin.ts              process entry: sim-lc500 --package <acme-lc500.prl> --port 5290
+    src/bin.ts              process entry: sim-lc500 [--package <acme-lc500.prl>] [--port 5290]
+    bench/                  @sim/bench — the standalone bench SPA (§9):
+                            terminal + bench + "How it works" panes; served by
+                            the sim at `/`, embedded by the SMART app
 e2e/                        boot-the-process, drive-both-channels tests
 ```
 
@@ -145,7 +149,7 @@ Per the R 60 `technology` attribute values:
 
 | Stack | Physics added |
 |---|---|
-| analogue-passive | none — raw mV/V bridge output; the *indication* forms downstream (see the indicator-pairing note, §12) |
+| analogue-passive | none — raw mV/V bridge output; the *indication* forms downstream (see the indicator-pairing note, §14) |
 | analogue-active | amplifier: offset, drift, noise; output stage (4–20 mA / 0–10 V) |
 | digital | in-cell ADC: quantization at converter resolution; firmware: digital filtering (response time vs noise), linearization, **temperature compensation with residual error** (a prime wind-tunnel knob) |
 | digital + further processing | + self-diagnostics / fault detection (the R 60 `self_test` behavior), richer compensation models |
@@ -296,24 +300,58 @@ New family templates (analogue-passive × shear-beam, digital ×
 single-point, …) are authored as definition records; the presets
 apply per template.
 
-## 9. The web terminal + practice flows (SMART app)
+## 9. Standalone operation (runnable outside SMART)
 
-- A house-style island at `/app/sim`, browser → sim direct (CORS).
-  The app's own logic never calls `/world`; the terminal is
-  *user*-driven — the user plays the physical world. Two panes:
-  1. **The terminal** — scrollback + prompt component (no xterm
-     dependency): the console grammar of §7.
-  2. **The virtual bench** (in v1 per user decision) — a WebGPU/WebGL
-     rendering of the bench, **fed exclusively by `/world` state**
-     (rendering, never a physics input — §4.5): the cell visibly
-     compressing (exaggerated strain map per construction profile),
-     the weight landing/removing, chamber dials (temperature,
-     humidity, pressure) sweeping with the D 11 profile, the virtual
-     clock, and the indication display reading `/twin` — the user
-     sees instrument-view and reality-view side by side, the
-     epistemic split made visceral. Renderer: a small WebGL2 (or
-     WebGPU-with-fallback) scene owned by the app; the cell geometry
-     is a stylized asset per construction profile, not a CAD mesh.
+The sim is a product in its own right (user direction, 2026-07-26):
+an engineer who has never heard of Primmel must be able to run it,
+poke it, and learn from it — no SMART checkout, no doctrine reading
+required.
+
+- **Zero-SMART runtime.** The instrument ships its `/twin` schema as
+  a **baked artifact** (generated from the product package at pack
+  time — primmel-ts is a *build-time-only* dependency). `sim-lc500`
+  boots with no SMART checkout, no `.prl`, no `PRIMMEL_TS`. Passing
+  `--package` re-runs the conformance check against a live package
+  when one IS present (the development posture).
+- **One process, everything inside.** The server hosts `/twin`,
+  `/world`, **GraphiQL playgrounds for both schemas** (graphql-yoga
+  built-in — free self-documentation and poking), and `/` — the
+  bench SPA. `sim-lc500 console` attaches the IOS console to a
+  running instance; `--console` runs server + console in one process.
+- **The bench is a sim-repo package** (`@sim/bench`): a
+  dependency-light SPA (vanilla TS + WebGL2) with three panes — the
+  terminal, the virtual bench, and a **"How it works"** pane (the
+  live signal chain: per-stage readouts, the constitutive laws of
+  §4.5, the current coefficients — load-cell physics taught from the
+  running sim alone). The SMART app's `/app/sim` island **embeds the
+  same package**: one bench codebase, two hosts — standalone-first,
+  SMART as a consumer.
+- **Distribution.** `git clone && npm install && npm start` works
+  from day one. The `npx @sim/lc500` path rides an npm publish at
+  the v1 release (a release act with the user, not a design
+  dependency).
+- **The quickstart teaches, Primmel-free.** README quickstart + a
+  `tour` console command walk a newcomer: boot → the two channels →
+  place a load → watch the indication → sweep the temperature → run
+  a scenario → "this is what a certification engine would see".
+
+## 10. The SMART app embed + practice flows
+
+- A house-style island at `/app/sim` **embeds `@sim/bench`** (the
+  standalone SPA of §9 — one codebase, two hosts), browser → sim
+  direct (CORS). The app's own logic never calls `/world`; the
+  terminal is *user*-driven — the user plays the physical world. The
+  embed shows the two panes side by side:
+  1. **The terminal** — the console grammar of §7.
+  2. **The virtual bench** — the WebGL2 scene fed exclusively by
+     `/world` state (rendering, never a physics input — §4.5): the
+     cell visibly compressing (exaggerated strain map per
+     construction profile), the weight landing/removing, chamber
+     dials sweeping with the D 11 profile, the virtual clock, and
+     the indication display reading `/twin` — instrument-view and
+     reality-view side by side, the epistemic split made visceral.
+     The cell geometry is a stylized asset per construction profile,
+     not a CAD mesh.
 - **Practice flows** (app-side content, browser-owned — not generated):
   1. **Free play** — the raw terminal + bench.
   2. **Guided R 60-2 walkthrough** — the
@@ -324,7 +362,7 @@ apply per template.
   3. **The four scenario cells** — the same method run against four
      physics presets, four different verdict outcomes.
 
-## 10. SMART integration (C6 — deferred until after smart task 35)
+## 11. SMART integration (C6 — deferred until after smart task 35)
 
 - The task-33 gateway gains a **`graphql` connector** (query + SSE
   subscription transports); a deployment binding registers the sim's
@@ -337,7 +375,7 @@ apply per template.
 - The pilot's in-process `DemoProvider` stays as the fast path; the
   sim is the real out-of-process path.
 
-## 11. Testing + gates
+## 12. Testing + gates
 
 - **Physics**: golden trajectories per phenomenon with seeded RNG;
   per-stage unit tests (mechanical hysteresis branch memory, creep
@@ -358,7 +396,7 @@ apply per template.
 - **e2e/**: boot the process on a test port, drive both channels.
 - CI: GitHub Actions (typecheck + test) from day one.
 
-## 12. Build order + parallelization
+## 13. Build order + parallelization
 
 | Stage | Item | Depends on | Lane |
 |---|---|---|---|
@@ -366,15 +404,16 @@ apply per template.
 | C2 | `/world` schema + server + console | C1 | parallel |
 | C3 | `/twin` schema generation + conformance check | C1 (types) | parallel |
 | C4 | `@sim/lc500`: digital + analogue-passive stacks, compression profile, scenarios, bin | C1 | parallel |
-| C5a | web terminal + practice flows (smart app) | C2 (terminal); test-run.service | overlaps |
-| C5b | virtual-bench visualization (WebGL2/WebGPU renderer fed by `/world`; stylized profile assets) | C2 (state), C5a (the island) | overlaps |
+| C5a | SMART embed of `@sim/bench` at `/app/sim` + practice flows (smart app) | C5b (the bench package); test-run.service | overlaps |
+| C5b | the bench SPA: terminal pane + virtual-bench visualization (WebGL2 renderer fed by `/world`; stylized profile assets) + "How it works" pane | C2 (state) | overlaps |
 | C6 | SMART `graphql` connector + wind-tunnel e2e | smart task 35 | deferred |
 
-C2/C3/C4 run concurrently after C1's types land; C5a/C5b overlap in
-the app (≤3 agents at the plateau). This lane has **zero merge
-contention** with the smart-repo and kernel lanes running in parallel.
+C2/C3/C4 run concurrently after C1's types land; C5b builds beside
+them and C5a embeds it in the app (≤3 agents at the plateau). This
+lane has **zero merge contention** with the smart-repo and kernel
+lanes running in parallel.
 
-## 13. Explicit non-goals + design notes (v1)
+## 14. Explicit non-goals + design notes (v1)
 
 - **Analogue-passive indicator pairing.** A real analogue-passive
   cell has no twin interface — the twin lives on the *indicator*. v1
@@ -387,6 +426,9 @@ contention** with the smart-repo and kernel lanes running in parallel.
 - No auth on `/world` in v1 (localhost development posture;
   documented — a deployment would gate it, `/world` is omnipotent by
   design).
+- **npm publishing is a release act, not a v1 dependency** — the
+  standalone story works from a clone from day one; `npx @sim/lc500`
+  rides the v1-release publish decision with the user.
 - No instrument #2 (radar, gas analyzer) until the load-cell family
   proves the framework.
-- No console tab-completion (v2), no xterm.js in the web terminal.
+- No console tab-completion (v2), no xterm.js in the terminal pane.
