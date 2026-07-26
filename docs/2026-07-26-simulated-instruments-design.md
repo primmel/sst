@@ -164,6 +164,31 @@ drift, environmental profiles): manual-step default
 (`advanceTime(seconds)`), wall-clock opt-in; seeded RNG throughout —
 golden trajectories are testable.
 
+### 4.5 Why no 3D model (the fidelity grounding)
+
+A realistic behavioral simulation does not need the cell's geometry —
+it needs the **constitutive laws and their parameters**. R 60's own
+metrology is behavioral (it bounds phenomena; it never references
+geometry), and manufacturers characterize cells by *measurement*
+(catalog rated output/deflection), not by FEA. Each simulated
+phenomenon has a lumped law with parameters sourced from literature,
+datasheets, or R 60's test envelopes: compliance (datasheet rated
+deflection), hysteresis branch memory (class, R 60-2 error-test
+bounds), creep exponentials (fitted to the 30-min envelope + p_lc
+apportionment), T_C0/T_Cspan coefficients (datasheet; digital stacks
+add compensation residuals), barometric coefficient (R 60-1, 5.6.2),
+bridge gauge factor (constant), ADC/firmware (converter resolution,
+filter difference equations — pure software), noise σ, warm-up
+settling, span-drift rate (R 60-2 warm-up + 28–40-day span-stability
+tests). The analog/digital split lives *downstream* of the elastic
+element (amplifier → ADC → firmware); load mechanisms enter as
+profile constants (compliance, hysteresis class, off-center
+sensitivity). A 3D model earns its keep in exactly two places: as a
+*rendering asset* for the bench visualization, and as the optional
+*offline FEA-calibration* path (SimScale/CalculiX/FEniCS — fitting a
+profile's constants from a study when no datasheet exists; a
+methodology note, never a runtime dependency).
+
 ## 5. The environmental layer (OIML D 11)
 
 The physical world is not just loads. Per OIML D 11 (the umbrella
