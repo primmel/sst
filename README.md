@@ -32,10 +32,21 @@ chapters 14–15.
 
 ## Status
 
-Design approved; implementation starting. The standalone promise:
+**v1 shipped (2026-07-27)** — the standalone promise is real today:
 `git clone … && npm install && npm start` boots a simulated load
 cell with its console, its GraphQL channels (with GraphiQL
 playgrounds), and the virtual-bench web app at
 `http://localhost:5290/` — no SMART checkout, no Primmel knowledge
-required.
+required. CI: 7/7 jobs green on GitHub Actions (typecheck, tests on
+node 22/24, bench build, standalone boot, console session,
+bake-freshness). The design is
+`docs/2026-07-26-simulated-instruments-design.md`; the implementation
+plan `docs/plans/2026-07-26-v1-implementation.md`. The SMART app's
+simulated bench + practice flows live at `/app/sim` in
+[oimlsmart/smart](https://github.com/oimlsmart/smart); the full
+chapter is
+[Simulated instruments](https://www.primmel.org/primmel-oiml-smart/platform/02-simulated-instruments/)
+on the docs site. Doctrine background:
+[primmel-oiml-smart](https://www.primmel.org/primmel-oiml-smart/)
+chapters 14–15.
 
