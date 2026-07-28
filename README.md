@@ -26,6 +26,11 @@ Instrument #1: the **ACME LC-500 load cell** (OIML R 60 territory),
 against the `acme-lc500` product reference package in
 [oimlsmart/smart](https://github.com/oimlsmart/smart).
 
+Instrument #2: the **reference continuous gas monitor** (OIML R 144
+territory — CO by NDIR, NOx by chemiluminescence; gas bench, drift
+classes, cross-sensitivity, zero/span calibration). Its twin rides the
+declared serve contract until the product reference package lands.
+
 Docs: the design is `docs/2026-07-26-simulated-instruments-design.md`.
 Doctrine background: [primmel-oiml-smart](https://www.primmel.org/primmel-oiml-smart/)
 chapters 14–15.
