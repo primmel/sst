@@ -31,6 +31,15 @@ territory — CO by NDIR, NOx by chemiluminescence; gas bench, drift
 classes, cross-sensitivity, zero/span calibration). Its twin rides the
 declared serve contract until the product reference package lands.
 
+Instrument #3: the **R 91 reference Doppler radar speed meter**
+(`@sim/r91`, `sim-r91`) — a stationary K-band CW radar (20–180 km/h,
+R 91-1 §6.1; the 6.4 stationary MPE): emission+reflection →
+demodulation+estimation → conditioning, with the cosine error,
+oscillator drift, rain fade (missed readings, never wrong ones),
+vibration/EMI disturbance channels, and the interference-capture
+fault. Its twin rides the stand-in serve contract until the SIM-R91-2
+product package lands (the handshake test is skip-guarded).
+
 Docs: the design is `docs/2026-07-26-simulated-instruments-design.md`.
 Doctrine background: [primmel-oiml-smart](https://www.primmel.org/primmel-oiml-smart/)
 chapters 14–15.

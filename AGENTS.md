@@ -36,6 +36,14 @@ interface, simulated actions, the two-schema topology).
 - `packages/lc500` (@sim/lc500) — the simulated ACME LC-500 family:
   the instrument definition, scenarios, process entry. Boots with
   zero SMART (the twin schema is baked at pack time).
+- `packages/r91` (@sim/r91) — instrument #3: the simulated R 91
+  reference Doppler radar speed meter (stationary K-band CW,
+  20–180 km/h, the R 91-1 6.4 stationary MPE). Contributes its
+  `WorldKind` (`R91_WORLD_KIND`) to the kind-generic `/world`
+  builder. Boots on the stand-in twin contract (`R91_CONTRACT`,
+  baked at pack time) until the SIM-R91-2 product package lands
+  (the handshake test is skip-guarded — the LC500 pre-package
+  precedent). The console is not wired for this family.
 - `packages/lc500/bench` (@sim/bench) — the standalone bench SPA
   (terminal + bench + "How it works" panes), served by the sim at
   `/` and embedded by the SMART app. One codebase, two hosts.
