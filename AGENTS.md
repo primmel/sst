@@ -28,7 +28,9 @@ interface, simulated actions, the two-schema topology).
 
 - `packages/core` (@sim/core) — the framework: physics stages and
   families, the OIML D 11 environment layer, virtual clock,
-  dual-schema server, twin-schema generator, console engine. Depends
+  dual-schema server (the `/world` builder is kind-generic — each
+  instrument family contributes a `WorldKind`), twin-schema generator
+  (per-target register readers), console engine. Depends
   only on primmel-ts (`.prl` parsing — build-time only), graphql,
   graphql-yoga.
 - `packages/lc500` (@sim/lc500) — the simulated ACME LC-500 family:
@@ -37,6 +39,13 @@ interface, simulated actions, the two-schema topology).
 - `packages/lc500/bench` (@sim/bench) — the standalone bench SPA
   (terminal + bench + "How it works" panes), served by the sim at
   `/` and embedded by the SMART app. One codebase, two hosts.
+- `packages/gas-analyzer` (@sim/gas-analyzer) — instrument #2: the
+  simulated R 144 reference CGM (CO by NDIR, NOx by
+  chemiluminescence). Boots on the DECLARED twin contract
+  (`GAS_ANALYZER_CONTRACT` in core) until the SIM-R144-2 product
+  package lands (the handshake test is skip-guarded — the LC500
+  pre-package precedent). The console is not wired for this family
+  yet (next leg).
 - `e2e/` — boot-the-process, drive-both-channels end-to-end tests.
 - `docs/` — the design doc and any later architecture notes.
 
