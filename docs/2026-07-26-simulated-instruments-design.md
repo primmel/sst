@@ -249,6 +249,11 @@ declarations generate the schema:
 | `serve … environmental_context` | `Query.environmentalContext: Environment!` |
 | instrument-legal operations | `Mutation.zeroSetting`, `Mutation.selfTest` (v1) |
 
+(2026-07-29, TODO.v2/16: the LC-500's served surface is now exactly the
+R 60 governed projection — `environmental_context` left the lc500
+contract; the row above still describes the pattern, live on the gas
+analyzer's contract.)
+
 **Startup conformance check:** the introspected schema ≡ the package's
 serve declarations ≡ the mapped promises. Any diff fails the process
 with the diff printed — the twin can never drift from its declared
