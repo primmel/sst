@@ -40,6 +40,19 @@ vibration/EMI disturbance channels, and the interference-capture
 fault. Its twin rides the stand-in serve contract until the SIM-R91-2
 product package lands (the handshake test is skip-guarded).
 
+Instrument #4: the **R 129 reference optical multi-dimensional
+measuring instrument** (`@sim/md`, `sim-md`) — an automatic
+light-section conveyor dimensioner (d = 0.5 cm, V_min…V_max
+0.1–1.5 m/s; the R 129-1 §4.1.2 per-axis MPE ±1.0 d): object +
+transport → optical scanning → dimension computation, with the
+along-track sampling law (the speed-of-movement effect), reflectance
+and ambient-light noise (the A.3/A.4.1 benches), protrusion
+resolution, belt-encoder slip, scan-head tilt, and the configurable
+post-temperature-cycle residual. The twin generates from the landed
+`acme-md3xx` product reference package (TODO.v2/08's R 129 leg; the
+handshake test is skip-guarded and overridable via
+`SIM_MD_PRODUCT_PACKAGE`).
+
 ## Guarding `/world` (non-local deployments)
 
 Out of the box the sim is fully open — the localhost development
