@@ -457,7 +457,10 @@ lanes running in parallel.
   circuit-level waveform.
 - No auth on `/world` in v1 (localhost development posture;
   documented — a deployment would gate it, `/world` is omnipotent by
-  design).
+  design). **Since TODO.v2/11 the gate exists as an opt-in:**
+  `SIM_WORLD_TOKEN` guards `/world` mutations with a bearer token at
+  the transport edge (queries and `/twin` stay open; unset = open) —
+  see the README's "Guarding /world" section.
 - **npm publishing is a release act, not a v1 dependency** — the
   standalone story works from a clone from day one; `npx @sim/lc500`
   rides the v1-release publish decision with the user.

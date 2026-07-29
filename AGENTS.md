@@ -29,7 +29,9 @@ interface, simulated actions, the two-schema topology).
 - `packages/core` (@sim/core) — the framework: physics stages and
   families, the OIML D 11 environment layer, virtual clock,
   dual-schema server (the `/world` builder is kind-generic — each
-  instrument family contributes a `WorldKind`), twin-schema generator
+  instrument family contributes a `WorldKind`; `/world` mutations take
+  an opt-in `SIM_WORLD_TOKEN` bearer guard — unset = open local
+  posture, queries and `/twin` always open), twin-schema generator
   (per-target register readers), console engine. Depends
   only on primmel-ts (`.prl` parsing — build-time only), graphql,
   graphql-yoga.

@@ -40,6 +40,32 @@ vibration/EMI disturbance channels, and the interference-capture
 fault. Its twin rides the stand-in serve contract until the SIM-R91-2
 product package lands (the handshake test is skip-guarded).
 
+## Guarding `/world` (non-local deployments)
+
+Out of the box the sim is fully open — the localhost development
+posture, so a clone runs standalone with zero configuration. Before
+any **non-local deployment** (a shared host, a demo server), guard the
+physical-actuation channel with one environment variable:
+
+```
+SIM_WORLD_TOKEN=<some-long-random-string> npm start
+```
+
+With the token set, every `/world` **mutation** (placeLoad,
+setEnvironment, injectFault/clearFault, advanceTime, scenario, reset,
+the kind knobs…) requires `Authorization: Bearer <token>` and is
+otherwise rejected `401` with a clear error — before any resolver
+runs. World **queries** (ground truth, clock, scenarios, profiles,
+introspection) and the whole `/twin` channel stay open: observing is
+free, actuating is guarded. Unset ⇒ everything open, and the server
+says so on startup (the honesty line).
+
+Clients: the node console reads the same `SIM_WORLD_TOKEN` from its
+environment; the bench terminal prompts for the token on the first
+rejected mutation and keeps it for the tab (sessionStorage). The
+SMART app carries the token in its own deployment config (the smart
+repo's `sim-twin-deployment` knob).
+
 Docs: the design is `docs/2026-07-26-simulated-instruments-design.md`.
 Doctrine background: [primmel-oiml-smart](https://www.primmel.org/primmel-oiml-smart/)
 chapters 14–15.
