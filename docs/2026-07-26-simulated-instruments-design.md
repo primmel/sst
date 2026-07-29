@@ -452,6 +452,13 @@ lanes running in parallel.
   models the passive stack's bridge output; how a paired indicator
   model (its own sim stage-chain) hosts `/twin` is a documented
   design note, built when an analogue family template ships.
+  STATUS (2026-07-29, smart TODO.v2/09, d2acc07): the pairing SHIPPED
+  re-scoped — the paired dial is a ground-truth RENDERING in the bench
+  (`packages/core/src/physics/stages/dial.ts` + the bench dial pane,
+  fed by the `/world` poll) with the reading entering evidence through
+  human observation (`observer_attestation`), deliberately NOT a
+  `/twin` serve. The `/twin`-hosting indicator family template above
+  remains deferred.
 - **EMC events are severity-encoded, not transient-modelled** — a
   burst is a programmed disturbance event with D 11 severity, not a
   circuit-level waveform.
