@@ -358,8 +358,8 @@ required.
   running sim alone). The SMART app's `/app/sim` island **embeds the
   same package**: one bench codebase, two hosts — standalone-first,
   SMART as a consumer.
-- **Distribution.** `git clone && npm install && npm start` works
-  from day one. The `npx @sim/lc500` path rides an npm publish at
+- **Distribution.** `git clone && npm install && npm start -w @sim/lc500`
+  works from day one. The `npx @sim/lc500` path rides an npm publish at
   the v1 release (a release act with the user, not a design
   dependency).
 - **The quickstart teaches, Primmel-free.** README quickstart + a
@@ -464,7 +464,10 @@ lanes running in parallel.
   circuit-level waveform.
 - No auth on `/world` in v1 (localhost development posture;
   documented — a deployment would gate it, `/world` is omnipotent by
-  design).
+  design). **Since TODO.v2/11 the gate exists as an opt-in:**
+  `SIM_WORLD_TOKEN` guards `/world` mutations with a bearer token at
+  the transport edge (queries and `/twin` stay open; unset = open) —
+  see the README's "Guarding /world" section.
 - **npm publishing is a release act, not a v1 dependency** — the
   standalone story works from a clone from day one; `npx @sim/lc500`
   rides the v1-release publish decision with the user.
