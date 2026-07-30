@@ -1,12 +1,19 @@
-# sim-instruments — Simulated SMART devices
+# sim-instruments — the Primmel SMART Digital Twin, demonstrated
 
-A library of **simulated measuring instruments** — software test
-benches for the Primmel/OIML SMART ecosystem: controlled physical
-worlds (loads, environment, time) in which the operator sets the
-ground truth, so the correct verdict is known in advance. (The
-"wind tunnel" idea, per instrument kind: a bench for load cells, a
-flow rig for water meters, a road for radar, a gas bench for
-analyzers.)
+A library of **simulated measuring instruments** for the **OIML SMART
+program** — the working demonstration of what a **Primmel SMART Digital
+Twin** *is* and *does*: not an admin shell of vendor-designed verbs,
+but a **governed projection whose interface is DEFINED BY PRIMMEL
+MODELS**. Each instrument's `/twin` interface is *generated from its
+Primmel product reference package* (the serve declarations become the
+schema, and a startup conformance check fails the process if the schema
+ever drifts from the model) — the interface is the model, executable.
+
+Around each twin, a controlled physical world (loads, environment,
+time) in which the operator sets the ground truth, so the correct
+verdict is known in advance. (The "wind tunnel" idea, per instrument
+kind: a bench for load cells, a flow rig for water meters, a road for
+radar, a gas bench for analyzers.)
 
 > **Where am I?** This repo is the instrument library of the **OIML SMART platform** (`oimlsmart/smart`). The full system map — every component, what it owns, and its proof command — is one hop away: [`docs/architecture/for-agents.md`](https://github.com/oimlsmart/smart/blob/v2/docs/architecture/for-agents.md).
 
@@ -17,7 +24,7 @@ Each simulated instrument:
   quantization — the physics belongs to the instrument, not to any
   standard), and
 - serves the **SMART digital twin interface** (`/twin`, GraphQL) —
-  generated from its Primmel product reference package, so the
+  **generated from its Primmel product reference package**, so the
   interface can never drift from the declared contract, and
 - accepts **simulated actions** (`/world`, GraphQL) — the out-of-band
   physical world: place/remove load, set environment, virtual time,
