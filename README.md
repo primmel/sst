@@ -8,7 +8,7 @@ ground truth, so the correct verdict is known in advance. (The
 flow rig for water meters, a road for radar, a gas bench for
 analyzers.)
 
-> **Where am I?** This repo is the instrument library of the **OIML SMART platform** (`oimlsmart/smart`). The full system map — every component, what it owns, and its proof command — is one hop away: [`docs/architecture/for-agents.md`](https://github.com/oimlsmart/smart/blob/rt-instrument-model/docs/architecture/for-agents.md).
+> **Where am I?** This repo is the instrument library of the **OIML SMART platform** (`oimlsmart/smart`). The full system map — every component, what it owns, and its proof command — is one hop away: [`docs/architecture/for-agents.md`](https://github.com/oimlsmart/smart/blob/v2/docs/architecture/for-agents.md).
 
 Each simulated instrument:
 
