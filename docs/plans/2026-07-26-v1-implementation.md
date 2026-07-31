@@ -4,7 +4,7 @@
 
 **Goal:** Build the simulated-instrument framework and the first instrument family (simulated ACME LC-500 load cells) per the approved design.
 
-**Architecture:** npm-workspaces monorepo; `@sim/core` (physics stages + families, D 11 environment, virtual clock, dual-schema server, twin-schema generator, console engine), `@sim/lc500` (instrument definition + scenarios + bench SPA + process entry). Two GraphQL schemas on one process: `/twin` (generated from the product package; baked at pack time for standalone) and `/world` (simulated actions). Zero runtime dependency on the SMART repo; primmel-ts is a build-time-only dependency.
+**Architecture:** npm-workspaces monorepo; `@primmel/sst-runtime` (physics stages + families, D 11 environment, virtual clock, dual-schema server, twin-schema generator, console engine), `@sim/lc500` (instrument definition + scenarios + bench SPA + process entry). Two GraphQL schemas on one process: `/twin` (generated from the product package; baked at pack time for standalone) and `/world` (simulated actions). Zero runtime dependency on the SMART repo; primmel-ts is a build-time-only dependency.
 
 **Tech Stack:** TypeScript strict + ESM (Node ≥ 22), vitest, graphql + graphql-yoga (SSE subscriptions, GraphiQL), tsx. No xterm, no Apollo, no WebGPU requirement in v1 code (WebGL2 first, WebGPU optional fallback).
 
@@ -40,7 +40,7 @@
 `packages/core/package.json`:
 ```json
 {
-  "name": "@sim/core",
+  "name": "@primmel/sst-runtime",
   "version": "0.0.0",
   "private": true,
   "type": "module",

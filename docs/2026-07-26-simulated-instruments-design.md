@@ -1,7 +1,7 @@
 # Simulated instruments — the founding design
 
 > **Status:** approved design (2026-07-26), pending spec review →
-> implementation plan. **Scope of v1:** the framework (`@sim/core`),
+> implementation plan. **Scope of v1:** the framework (`@primmel/sst-runtime`),
 > the first instrument family (`@sim/lc500`, simulated ACME LC-500
 > load cells), both GraphQL channels, the IOS-style console, the
 > **standalone** virtual-bench web app (runnable with zero SMART —
@@ -87,7 +87,7 @@ npm-workspaces monorepo (this repo):
 
 ```
 packages/
-  core/                     @sim/core — the framework
+  core/                     @primmel/sst-runtime — the framework
     src/physics/stages/     composable signal-chain stages (§4):
                             mechanical / transduction / conditioning-output
     src/physics/families/   construction profiles + technology stacks (§4)

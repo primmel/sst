@@ -1,0 +1,28 @@
+---
+// src/pages/index.astro — the SST shell landing page. Gallery of
+// instrument kinds (R 60 load cells, R 91 radar, R 129 dimensioner,
+// R 144 gas analyzer). Click a kind → /kind/<id>. Click "Upload
+// package…" → /upload.
+import '../styles/global.css'
+import ShellApp from '../components/ShellApp.vue'
+import { buildCatalog } from '../lib/catalog'
+
+const { kinds } = await buildCatalog()
+---
+<!doctype html>
+<html lang="en" style="color-scheme: dark;">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Primmel SST — instrument gallery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <ShellApp client:load kinds={kinds} />
+  </body>
+</html>

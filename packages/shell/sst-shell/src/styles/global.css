@@ -1,0 +1,36 @@
+/* The shell uses the same design tokens as the bench — seamless transition. */
+@import "tailwindcss";
+
+@theme {
+  --color-base: #14171C;
+  --color-surface-1: #1B1F26;
+  --color-surface-2: #232831;
+  --color-surface-3: #2C333D;
+  --color-inset: #0C0F14;
+  --color-line: #2D333D;
+  --color-line-strong: #3D4452;
+  --color-fg: #E6E2D8;
+  --color-fg-dim: #A8A39A;
+  --color-fg-mute: #6E6A63;
+  --color-twin: #E8A33D;
+  --color-twin-bright: #F5B856;
+  --color-world: #6FA8DC;
+  --color-world-bright: #88BEF0;
+  --color-ok: #7BC66A;
+  --color-warn: #E8C547;
+  --color-err: #E15F5F;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--color-base);
+  color: var(--color-fg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}

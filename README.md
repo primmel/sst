@@ -1,115 +1,114 @@
-# sim-instruments — the Primmel SMART Digital Twin, demonstrated
+# Primmel SST — the Simulated SMART Twin platform
 
-A library of **simulated measuring instruments** for the **OIML SMART
-program** — the working demonstration of what a **Primmel SMART Digital
-Twin** *is* and *does*: not an admin shell of vendor-designed verbs,
-but a **governed projection whose interface is DEFINED BY PRIMMEL
-MODELS**. Each instrument's `/twin` interface is *generated from its
-Primmel product reference package* (the serve declarations become the
-schema, and a startup conformance check fails the process if the schema
-ever drifts from the model) — the interface is the model, executable.
+A **plug-and-play simulator** for OIML measuring instruments. Each
+instrument kind lives in a self-describing **Primmel SST package** —
+open the UI, upload a package (a ZIP of YAML + a 3D model + bundled
+behavior), the sim runs.
 
-Around each twin, a controlled physical world (loads, environment,
-time) in which the operator sets the ground truth, so the correct
-verdict is known in advance. (The "wind tunnel" idea, per instrument
-kind: a bench for load cells, a flow rig for water meters, a road for
-radar, a gas bench for analyzers.)
+> **Where am I?** This repo is the SST platform of the Primmel/OIML
+> SMART ecosystem. The SMART app embeds the bench via iframe; the
+> doctrine background is at
+> [primmel-oiml-smart](https://www.primmel.org/primmel-oiml-smart/).
 
-> **Where am I?** This repo is the instrument library of the **OIML SMART platform** (`oimlsmart/smart`). The full system map — every component, what it owns, and its proof command — is one hop away: [`docs/architecture/for-agents.md`](https://github.com/oimlsmart/smart/blob/v2/docs/architecture/for-agents.md).
+## What it is
 
-Each simulated instrument:
+The platform composes **five tiers**:
 
-- implements the **real physics** of its instrument kind (strain-gauge
-  transduction, creep, hysteresis, temperature effects, drift, noise,
-  quantization — the physics belongs to the instrument, not to any
-  standard), and
-- serves the **SMART digital twin interface** (`/twin`, GraphQL) —
-  **generated from its Primmel product reference package**, so the
-  interface can never drift from the declared contract, and
-- accepts **simulated actions** (`/world`, GraphQL) — the out-of-band
-  physical world: place/remove load, set environment, virtual time,
-  physics-knob scenarios. Certification software never uses this
-  channel; it is simulated reality, not instrument API.
+| Tier | Owner | Example |
+|---|---|---|
+| **base** | OIML D 11 environmental conditions (passive) | `packages/base/sst-oiml-base/` |
+| **kind** | one OIML Recommendation (R 60, R 91, R 129, R 144, …) | `packages/kinds/sst-r60/` |
+| **instance** | one manufacturer/model (ACME LC-500, …) | `packages/instances/acme-lc500/` |
+| **runtime** | the kind-agnostic loader (TODO 02) | `packages/runtime/sst-runtime/` |
+| **shell** | the web UI host (TODO 03) | `packages/shell/sst-shell/` |
 
-Instrument #1: the **ACME LC-500 load cell** (OIML R 60 territory),
-against the `acme-lc500` product reference package in
-[oimlsmart/smart](https://github.com/oimlsmart/smart).
-
-Instrument #2: the **reference continuous gas monitor** (OIML R 144
-territory — CO by NDIR, NOx by chemiluminescence; gas bench, drift
-classes, cross-sensitivity, zero/span calibration). Its twin mirrors
-the landed `acme-cgm-200` product reference package.
-
-Instrument #3: the **R 91 reference Doppler radar speed meter**
-(`@sim/r91`, `sim-r91`) — a stationary K-band CW radar (20–180 km/h,
-R 91-1 §6.1; the 6.4 stationary MPE): emission+reflection →
-demodulation+estimation → conditioning, with the cosine error,
-oscillator drift, rain fade (missed readings, never wrong ones),
-vibration/EMI disturbance channels, and the interference-capture
-fault. Its twin generates from the landed `acme-rs180` product
-reference package (the handshake test passes on the default path).
-
-Instrument #4: the **R 129 reference optical multi-dimensional
-measuring instrument** (`@sim/md`, `sim-md`) — an automatic
-light-section conveyor dimensioner (d = 0.5 cm, V_min…V_max
-0.1–1.5 m/s; the R 129-1 §4.1.2 per-axis MPE ±1.0 d): object +
-transport → optical scanning → dimension computation, with the
-along-track sampling law (the speed-of-movement effect), reflectance
-and ambient-light noise (the A.3/A.4.1 benches), protrusion
-resolution, belt-encoder slip, scan-head tilt, and the configurable
-post-temperature-cycle residual. The twin generates from the landed
-`acme-md3xx` product reference package (TODO.v2/08's R 129 leg; the
-handshake test is skip-guarded and overridable via
-`SIM_MD_PRODUCT_PACKAGE`).
-
-## Guarding `/world` (non-local deployments)
-
-Out of the box the sim is fully open — the localhost development
-posture, so a clone runs standalone with zero configuration. Before
-any **non-local deployment** (a shared host, a demo server), guard the
-physical-actuation channel with one environment variable:
-
-```
-SIM_WORLD_TOKEN=<some-long-random-string> npm start -w @sim/lc500
-```
-
-With the token set, every `/world` **mutation** (placeLoad,
-setEnvironment, injectFault/clearFault, advanceTime, scenario, reset,
-the kind knobs…) requires `Authorization: Bearer <token>` and is
-otherwise rejected `401` with a clear error — before any resolver
-runs. World **queries** (ground truth, clock, scenarios, profiles,
-introspection) and the whole `/twin` channel stay open: observing is
-free, actuating is guarded. Unset ⇒ everything open, and the server
-says so on startup (the honesty line).
-
-Clients: the node console reads the same `SIM_WORLD_TOKEN` from its
-environment; the bench terminal prompts for the token on the first
-rejected mutation and keeps it for the tab (sessionStorage). The
-SMART app carries the token in its own deployment config (the smart
-repo's `sim-twin-deployment` knob).
-
-Docs: the design is `docs/2026-07-26-simulated-instruments-design.md`.
-Doctrine background: [primmel-oiml-smart](https://www.primmel.org/primmel-oiml-smart/)
-chapters 14–15.
+**Composition rule**: one instance → one kind → one base. Adding
+instances / kinds / base updates is **additive** at each tier — zero
+cross-tier edits. See `specs/07-ocp-patterns.md` and
+`specs/08-additive-extension.md` for the cookbook.
 
 ## Status
 
-**v1 shipped (2026-07-27)** — the standalone promise is real today:
-`git clone … && npm install && npm start -w @sim/lc500` boots a
-simulated load
-cell with its console, its GraphQL channels (with GraphiQL
-playgrounds), and the virtual-bench web app at
-`http://localhost:5290/` — no SMART checkout, no Primmel knowledge
-required. CI: 7/7 jobs green on GitHub Actions (typecheck, tests on
-node 22/24, bench build, standalone boot, console session,
-bake-freshness). The design is
-`docs/2026-07-26-simulated-instruments-design.md`; the implementation
-plan `docs/plans/2026-07-26-v1-implementation.md`. The SMART app's
-simulated bench + practice flows live at `/app/sim` in
-[oimlsmart/smart](https://github.com/oimlsmart/smart); the full
-chapter is
-[Simulated instruments](https://www.primmel.org/primmel-oiml-smart/platform/02-simulated-instruments/)
-on the docs site. Doctrine background:
-[primmel-oiml-smart](https://www.primmel.org/primmel-oiml-smart/)
-chapters 14–15.
+- **Phase 1 (base)** — D 11 Ed 13 conditions: 36/35 done (canonical
+  set + one synonym) under `packages/base/sst-oiml-base/conditions/`,
+  plus 3 canonical chamber profiles.
+- **Phase 2a (R 60 kind)** — fully authored:
+  classification/parameters/mpe/physics-chain/world-kind SDL+binding/
+  bench.yaml/interface.d.ts/scenarios.
+- **Phase 2b (ACME LC-500 instance)** — fully authored: manifest,
+  coefficients, 8 sample variants (fresh + 7 damaged), behavior source
+  + placeholder bundle, model stub.
+- **Phase 8 (sibling kinds)** — fully authored: `sst-r91` (radar),
+  `sst-r129` (dimensioner), `sst-r144` (gas analyzer) — each carries
+  the same 10-file set as `sst-r60`. Sibling instances are stubs
+  pending TODO 07's instance-side completion.
+- **Phase 3 (runtime)** — pending (TODO 02). Spec at `specs/05-runtime.md`.
+- **Phase 4 (shell)** — pending (TODO 03). Spec at `specs/06-shell.md`.
+- **Phases 5-9** — pending. See `TODO.complete/` for the full workstream plan.
 
+The legacy pre-SST packages (`packages/{core,lc500,r91,md,gas-analyzer}/`)
+keep working during the migration window. Phase 9 (`@sim/*` →
+`@primmel/sst-*` rename) folds them into the SST packages.
+
+## Quickstart (today, pre-runtime)
+
+The runtime (TODO 02) is not yet wired up — the bench SPA still boots
+via the legacy `sim-lc500` bin:
+
+```bash
+git clone …
+cd sim-instruments
+npm install
+npm start -w @sim/lc500                 # boots the LC-500 sim on :5290
+# → open http://localhost:5290/
+```
+
+After TODO 02 lands, the entry point becomes `primmel-sst run acme-lc500`.
+
+## Documentation map
+
+- **Architecture** — `specs/00-architecture.md` (the five-tier diagram
+  + the composition rule).
+- **Package format** — `specs/01-package-format.md` (the manifest schema)
+  and `specs/schemas/package-manifest.schema.json` (normative).
+- **Tier specs** — `specs/02-base-package.md`, `specs/03-kind-package.md`,
+  `specs/04-instance-package.md`.
+- **Runtime + shell** — `specs/05-runtime.md`, `specs/06-shell.md`.
+- **Pattern library** — `specs/07-ocp-patterns.md`.
+- **Cookbook** — `specs/08-additive-extension.md` (how to add a kind,
+  an instance, a condition, a stage).
+- **Design decisions** — `specs/09-design-decisions.md` (the ADR log).
+- **Workstream plan** — `TODO.complete/README.md` (every remaining
+  phase, with priority + status + dependencies).
+- **Packages directory** — `packages/README.md` (the tier grouping).
+
+## Repository layout
+
+```
+sim-instruments/
+  README.md                     this file
+  AGENTS.md                     agent guidance
+  CLAUDE.md                     Claude Code orientation
+  packages/
+    README.md                   the tier-grouping map
+    base/                       Tier 1 — D 11 base packages
+      sst-oiml-base/
+    kinds/                      Tier 2 — OIML SST kind packages
+      sst-r60/                  (fully authored — load cells, R 60)
+      sst-r91/                  (fully authored — radar speed meters, R 91)
+      sst-r129/                 (fully authored — dimensioners, R 129)
+      sst-r144/                 (fully authored — gas monitors, R 144)
+    instances/                  Tier 3 — Primmel SST instance packages
+      acme-lc500/               (fully authored)
+      acme-rs180/, acme-md3xx/, acme-cgm-200/   (stubs — TODO 07)
+    runtime/                    Phase 3 — pending
+    shell/                      Phase 4 — pending
+    core/, lc500/, r91/, md/, gas-analyzer/   (legacy pre-SST, kept during migration)
+  specs/                        the formal specs + JSON Schemas
+  TODO.complete/                the workstream plan (one file per phase)
+  docs/                         the founding design doc + addenda
+```
+
+## License
+
+TBD (the OIML SMART program's licensing decision applies).

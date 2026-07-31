@@ -1,0 +1,62 @@
+---
+// src/pages/session/[id].astro — the session view. Embeds the bench
+// (today's packages/lc500/bench/, generalized per TODO 05) via iframe
+// pointed at the runtime's session port.
+//
+// Status: scaffolded. Static-generates one page per known instance;
+// the runtime (TODO 02 full) allocates ports dynamically.
+import '../../styles/global.css'
+import { buildCatalog } from '../../lib/catalog'
+
+export async function getStaticPaths() {
+  const { instances } = await buildCatalog()
+  return instances.map(inst => ({ params: { id: inst.id } }))
+}
+
+const { id } = Astro.params
+const sample = Astro.url.searchParams.get('sample') ?? 'fresh'
+// TODO 02 full: replace with runtime-managed session ports. For now,
+// load cells boot on 5290; the other families on their default ports.
+const PORTS: Record<string, number> = {
+  'acme-lc500': 5290,
+  'acme-rs180': 5291,
+  'acme-md3xx': 5129,
+  'acme-cgm-200': 5144,
+}
+const port = PORTS[id ?? ''] ?? 5290
+const sessionUrl = `http://localhost:${port}/?sample=${encodeURIComponent(sample)}`
+---
+<!doctype html>
+<html lang="en" style="color-scheme: dark;">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Session {{id}} — Primmel SST</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      body { margin: 0; overflow: hidden; }
+      .session-bar {
+        display: flex; align-items: center; gap: 1rem;
+        padding: 0.5rem 1rem;
+        background: var(--color-surface-1); border-bottom: 1px solid var(--color-line);
+        font-family: var(--font-mono); font-size: 0.82rem; color: var(--color-fg-dim);
+      }
+      .session-bar a { color: var(--color-fg-dim); text-decoration: none; }
+      .session-bar a:hover { color: var(--color-twin); }
+      .session-bar .id { color: var(--color-fg); font-weight: 600; }
+      .session-bar .sample { color: var(--color-twin); }
+      .session-frame { width: 100vw; height: calc(100vh - 38px); border: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="session-bar">
+      <a href="/">←</a>
+      <span class="id">{id}</span>
+      <span>sample:</span>
+      <span class="sample">{sample}</span>
+      <span style="margin-left: auto;">{sessionUrl}</span>
+    </div>
+    <iframe class="session-frame" src={sessionUrl} title={`Session ${id}`}></iframe>
+  </body>
+</html>

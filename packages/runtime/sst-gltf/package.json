@@ -1,0 +1,20 @@
+{
+  "name": "@primmel/sst-gltf",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal glTF 2.0 binary (.glb) loader for raw WebGL2 — the SST bench's 3D-model interpreter.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0"
+  }
+}

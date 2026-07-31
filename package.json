@@ -5,7 +5,10 @@
   "description": "Simulated SMART devices — a library of simulated measuring instruments serving the Primmel SMART digital twin interface",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "packages/lc500/bench",
+    "packages/runtime/*",
+    "packages/shell/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
@@ -19,6 +22,6 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.1.0"
+    "vitest": "^4.1.10"
   }
 }
