@@ -17,8 +17,8 @@ export interface ConsoleIo {
   write(text: string): void
   /** Optional: when present, the typed drivers are available for
    *  programmatic consumers. The console itself uses raw queries. */
-  baseUrl?: string
-  worldToken?: string
+  baseUrl?: string | undefined
+  worldToken?: string | undefined
 }
 
 export interface ConsoleState {
