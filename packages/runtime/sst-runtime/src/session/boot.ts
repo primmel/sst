@@ -314,14 +314,17 @@ export async function bootSession(
   // 5. Boot the server with real-time twin streaming enabled.
   //    The /twin/stream endpoint emits SSE events on every clock advance,
   //    enabling continuous monitoring (not just annual calibration).
+  //    When the bench SPA's built dist exists, serve it at `/`.
   const port = opts.port ?? kind.defaultPort
   const streamTargets = contract.serves.map(s => s.target)
+  const benchDir = join(REPO_ROOT, 'packages', 'shell', 'sst-bench', 'dist')
   const server = await createSimServer({
     worldSchema,
     twinSchema,
     port,
     title: `${instance.manifest.title} (SST)`,
     worldToken: opts.worldToken,
+    ...(existsSync(benchDir) ? { benchDir } : {}),
     twinStream: {
       clock,
       targets: streamTargets,

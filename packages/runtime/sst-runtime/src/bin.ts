@@ -1,20 +1,26 @@
 #!/usr/bin/env tsx
 // primmel-sst — the SST CLI. Boots sessions, validates packages,
-// lists kinds/instances.
+// lists kinds/instances. The console mode (--console) drives a
+// readline loop against a single instance (load-cell-shaped grammar;
+// see console/grammar.ts).
 
 import { parseArgs } from 'node:util'
 import { loadPackage } from './package-loader.js'
 import { listKinds } from './kinds/registry.js'
 import { runSession } from './session.js'
+import { httpConsoleIo } from './console/client.js'
+import { runConsole } from './console/readline.js'
 
-const { positionals } = parseArgs({
+const { positionals, values } = parseArgs({
   allowPositionals: true,
   options: {
     port:       { type: 'string' },
     sample:     { type: 'string' },
     seed:       { type: 'string', default: '42' },
+    console:    { type: 'boolean', default: false },
   },
 })
+const consoleMode = values.console ?? false
 
 const command = positionals[0] ?? 'help'
 const target = positionals[1]
@@ -68,10 +74,32 @@ switch (command) {
         console.error(`'run' targets an instance package; got ${pkg.tier}`)
         process.exit(2)
       }
-      await runSession(pkg, {
-        port: positionals[2] ? Number(positionals[2]) : undefined,
+      const port = positionals[2] ? Number(positionals[2]) : undefined
+      const session = await runSession(pkg, {
+        port,
         sample: positionals[3],
       })
+      // --console: drive a readline loop against the booted session.
+      // The grammar is load-cell-shaped (place load, remove load, …);
+      // other kinds drive via /world directly. See CLAUDE.md.
+      if (consoleMode) {
+        const io = httpConsoleIo(session.url, (t) => process.stdout.write(t))
+        const rl = runConsole(io, process.stdin, process.stdout)
+        // Wait for readline to close (EOF) AND any queued commands to
+        // complete before closing the session + exiting.
+        rl.on('close', () => {
+          // Allow the chain to drain — piped scripts must complete.
+          setImmediate(async () => {
+            await new Promise((r) => setTimeout(r, 500))
+            await session.close()
+            process.exit(0)
+          })
+        })
+      } else {
+        // Run until SIGTERM/SIGINT.
+        process.on('SIGTERM', () => session.close().then(() => process.exit(0)))
+        process.on('SIGINT', () => session.close().then(() => process.exit(0)))
+      }
     } catch (err) {
       console.error(`✗ ${(err as Error).message}`)
       process.exit(1)
