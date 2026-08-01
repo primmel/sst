@@ -1,26 +1,10 @@
 {
-  "name": "sim-instruments",
+  "name": "primmel-sst",
   "private": true,
-  "version": "0.0.0",
-  "description": "Simulated SMART devices — a library of simulated measuring instruments serving the Primmel SMART digital twin interface",
   "type": "module",
-  "workspaces": [
-    "packages/*",
-    "packages/runtime/*",
-    "packages/shell/*"
-  ],
+  "workspaces": ["packages/runtime/*", "packages/shell"],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
-  },
-  "engines": {
-    "node": ">=22"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.5.0",
-    "vitest": "^4.1.10"
   }
 }
