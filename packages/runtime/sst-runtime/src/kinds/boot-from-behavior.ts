@@ -85,8 +85,12 @@ export async function tryBootFromBehavior(
     )
   }
 
-  // Require the load-bearing TwinInstrumentView surface.
-  for (const method of ['indication', 'servedAt', 'operationalState'] as const) {
+  // Require the universal TwinInstrumentView surface: servedAt (the
+  // freshness timestamp) and operationalState (the legal state). The
+  // kind-specific readers (indication, sampleFlow, etc.) are validated
+  // when the twin schema is generated — generateTwinSchema throws if a
+  // declared serve has no reader on the instrument.
+  for (const method of ['servedAt', 'operationalState'] as const) {
     if (typeof (instrument as Record<string, unknown>)[method] !== 'function') {
       throw new Error(
         `behavior.create() at ${behavior.sourcePath} produced an instrument missing ${method}() — ` +

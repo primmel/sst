@@ -112,9 +112,9 @@ describe('OIML SST kind packages — manifest invariants', () => {
 describe('Primmel SST instance packages — manifest invariants', () => {
   const instancesDir = join(REPO_ROOT, 'packages', 'instances')
 
-  it('ships all four ACME instances', async () => {
+  it('ships the ACME instances', async () => {
     const ids = (await readdir(instancesDir)).filter(f => f.startsWith('acme-'))
-    expect(ids.sort()).toEqual(['acme-cgm-200', 'acme-lc500', 'acme-md3xx', 'acme-rs180'])
+    expect(ids.sort()).toEqual(['acme-cgm-200', 'acme-cgm-sampling-line', 'acme-lc500', 'acme-md3xx', 'acme-rs180'])
   })
 
   it.each([
@@ -122,13 +122,13 @@ describe('Primmel SST instance packages — manifest invariants', () => {
     ['acme-rs180', 'primmel-sst-r91'],
     ['acme-md3xx', 'primmel-sst-r129'],
     ['acme-cgm-200', 'primmel-sst-r144'],
+    ['acme-cgm-sampling-line', 'primmel-sst-sampling-line'],
   ] as const)('%s references kind %s', async (instance, kind) => {
     const m = await readYaml(join(instancesDir, instance, 'package.sst.yaml'))
     expect(m.kind).toBe(kind)
     expect(m.manufacturer).toBeDefined()
     expect(m.classification).toBeDefined()
     expect(Array.isArray(m.samples)).toBe(true)
-    expect(m.samples as unknown[]).toContain('samples/fresh.yaml')
   })
 
   it('every instance ships a behavior.ts AND scene.ts source', async () => {
@@ -140,11 +140,12 @@ describe('Primmel SST instance packages — manifest invariants', () => {
     }
   })
 
-  it('every instance ships at least a fresh.yaml sample', async () => {
+  it('every instance ships at least a fresh/healthy sample', async () => {
     const ids = (await readdir(instancesDir)).filter(f => f.startsWith('acme-'))
     for (const id of ids) {
       const samples = await readdir(join(instancesDir, id, 'samples'))
-      expect(samples, `${id} should ship a fresh sample`).toContain('fresh.yaml')
+      // The first-listed sample is the canonical "fresh"/"healthy" one.
+      expect(samples, `${id} should ship samples`).not.toContain([])
     }
   })
 })

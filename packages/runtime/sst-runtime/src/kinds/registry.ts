@@ -70,3 +70,10 @@ registerKind({
   defaultPort: 5144,
   defaultScenario: 'fresh',
 })
+
+registerKind({
+  kindId: 'primmel-sst-sampling-line',
+  activeDomain: 'sample-transport',
+  defaultPort: 5145,
+  defaultScenario: 'healthy-line',
+})

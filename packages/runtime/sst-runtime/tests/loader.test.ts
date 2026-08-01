@@ -36,9 +36,9 @@ describe('@primmel/sst-runtime — package loader', () => {
 })
 
 describe('@primmel/sst-runtime — kind-interface registry', () => {
-  it('lists the four shipped kinds', () => {
+  it('lists the shipped kinds', () => {
     const ids = listKinds().map(k => k.kindId).sort()
-    expect(ids).toEqual(['primmel-sst-r129', 'primmel-sst-r144', 'primmel-sst-r60', 'primmel-sst-r91'])
+    expect(ids).toEqual(['primmel-sst-r129', 'primmel-sst-r144', 'primmel-sst-r60', 'primmel-sst-r91', 'primmel-sst-sampling-line'])
   })
 
   it.each([
@@ -46,6 +46,7 @@ describe('@primmel/sst-runtime — kind-interface registry', () => {
     ['primmel-sst-r91', 'speed'],
     ['primmel-sst-r129', 'dimensions'],
     ['primmel-sst-r144', 'gas-concentration'],
+    ['primmel-sst-sampling-line', 'sample-transport'],
   ] as const)('%s has active domain %s', (kindId, domain) => {
     expect(lookupKind(kindId).activeDomain).toBe(domain)
   })
