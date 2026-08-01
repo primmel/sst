@@ -6,14 +6,23 @@ contract.
 
 ## What this repo is
 
-The Primmel SST platform — a plug-and-play simulator for OIML
-measuring instruments. Five tiers compose: base (D 11 conditions),
-kind (per OIML Recommendation), instance (per manufacturer/model),
-runtime (the kind-agnostic loader), shell (the web UI host).
+The Primmel SST **framework** — a plug-and-play simulator for OIML
+measuring instruments: the kind-agnostic runtime
+(`packages/runtime/sst-runtime`, `sst-gltf`), the shell
+(`packages/shell/sst-shell`, `sst-bench`), and the specs (`specs/`).
+The instrument packages — base (D 11 conditions), kinds (per OIML
+Recommendation), instances (per manufacturer/model) — live in the
+sibling library repo
+**[oimlsmart/sst-instruments](https://github.com/oimlsmart/sst-instruments)**
+(the split, TODO.integration/24; the pre-split `sim-instruments` is
+archived). The runtime finds the library via
+`src/library-paths.ts` (`SST_LIBRARY_PATH` → sibling → in-repo);
+framework code NEVER imports instrument content (the boundary rule,
+proven by `smart/scripts/sst-split/check-boundary.sh`).
 
-The legacy pre-SST packages (`packages/{core,lc500,r91,md,gas-analyzer}/`)
-are kept during the migration window. New work goes into the tier
-subdirectories under `packages/`.
+The legacy pre-SST family packages were deleted in the v2 universal
+boot — every instrument boots through the data-driven path; there is
+no per-kind dispatch.
 
 ## The two laws (never violate)
 
@@ -29,13 +38,27 @@ subdirectories under `packages/`.
    existing tier members is a code smell.** See `specs/07-ocp-patterns.md`
    and `specs/08-additive-extension.md`.
 
-## Layout
+## Layout (this repo — the framework)
+
+- `packages/runtime/sst-runtime/` — the kind-agnostic loader +
+  server (`/twin`, `/world`, the bench host), the physics stages,
+  the stage registry, `src/library-paths.ts` (the library seam).
+
+- `packages/runtime/sst-gltf/` — the 3D-model pipeline helpers.
+
+- `packages/shell/sst-shell/`, `packages/shell/sst-bench/` — the web
+  UI host + the bench SPA.
+
+- `specs/` — the normative spec set (00–13; 13 is the composite
+  session).
+
+The tiers the runtime composes (in **oimlsmart/sst-instruments**):
 
 - `packages/base/sst-oiml-base/` (Tier 1) — D 11 conditions
   (climatic, mechanical, EMC, vehicle-supply), each as one YAML file
   under `conditions/`; canonical chamber time-programs under `profiles/`.
 
-- `packages/kinds/sst-r{60,91,129,144}/` (Tier 2) — kind packages
+- `packages/kinds/sst-r{60,91,129,144}/`, `sst-sampling-line/` (Tier 2) — kind packages
   (one per OIML Recommendation). Each has the same 10-file shape:
   `package.sst.yaml`, `classification.yaml`, `parameters.yaml`,
   `mpe.yaml`, `physics-chain.yaml`, `world-kind.sdl.graphql`,
