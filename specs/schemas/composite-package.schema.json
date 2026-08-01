@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://primmel.org/sst/schemas/composite-package.schema.json",
+  "title": "Primmel SST composite package manifest (overlay)",
+  "description": "An overlay applied on top of package-manifest.schema.json when the manifest carries a 'composition' block. Validates the composite shape: components, decomposition totality, state rule, optional couplings.",
+
+  "type": "object",
+  "properties": {
+    "tier": { "const": "primmel-instance" },
+    "composition": {
+      "type": "object",
+      "required": ["components", "decomposition", "state_rule"],
+      "properties": {
+        "source_of_truth": {
+          "type": "string",
+          "description": "The authority this SST composite projects (e.g. primmel:acme-cgm-system@2026)."
+        },
+        "components": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": ["instance"],
+            "properties": {
+              "instance": { "type": "string", "description": "Path (relative to this package) to the component instance package." }
+            }
+          }
+        },
+        "decomposition": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Maps each composite register to its source (component.register). Every composite register must be sourced exactly once (totality is checked in the loader, not by the schema — the schema validates key shape only).",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-z_][a-z0-9_]*\\.[a-z_][a-z0-9_]*$|^<computed>\\.[a-z_][a-z0-9_]*$",
+            "description": "component_id.register_name (e.g. analyzer.indicationCo) OR <computed>.rule_name for runtime-computed registers (e.g. operationalState)."
+          }
+        },
+        "state_rule": {
+          "type": "string",
+          "enum": ["any_fault_else_analyzer", "any_fault_else_named", "all_ok_else_fault", "named"],
+          "description": "The composite state rule. Registered rules live in the runtime's state-rule registry; package-authored code is forbidden."
+        },
+        "state_rule_args": {
+          "type": "object",
+          "description": "Optional arguments to the state rule (e.g. the named component for any_fault_else_named)."
+        },
+        "couplings": {
+          "type": "array",
+          "description": "Per-tick couplings between components. Each entry names a source port and a target port; the runtime reads source after each tick and writes to target before the next.",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "type": "string", "pattern": "^[a-z_][a-z0-9_]*\\.[a-z_][a-z0-9_]*$" },
+              "to":   { "type": "string", "pattern": "^[a-z_][a-z0-9_]*\\.[a-z_][a-z0-9_]*$" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["composition"]
+}

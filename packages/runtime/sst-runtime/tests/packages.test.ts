@@ -114,7 +114,7 @@ describe('Primmel SST instance packages — manifest invariants', () => {
 
   it('ships the ACME instances', async () => {
     const ids = (await readdir(instancesDir)).filter(f => f.startsWith('acme-'))
-    expect(ids.sort()).toEqual(['acme-cgm-200', 'acme-cgm-sampling-line', 'acme-lc500', 'acme-md3xx', 'acme-rs180'])
+    expect(ids.sort()).toEqual(['acme-cgm-200', 'acme-cgm-sampling-line', 'acme-cgm-system', 'acme-lc500', 'acme-md3xx', 'acme-rs180'])
   })
 
   it.each([
@@ -131,18 +131,22 @@ describe('Primmel SST instance packages — manifest invariants', () => {
     expect(Array.isArray(m.samples)).toBe(true)
   })
 
-  it('every instance ships a behavior.ts AND scene.ts source', async () => {
+  it('every single-kind instance ships a behavior.ts AND scene.ts source', async () => {
     const ids = (await readdir(instancesDir)).filter(f => f.startsWith('acme-'))
     for (const id of ids) {
+      const m = await readYaml(join(instancesDir, id, 'package.sst.yaml'))
+      if (m.composition) continue // composite packages have no src/ — they compose
       const files = await readdir(join(instancesDir, id, 'src'))
       expect(files, `${id}/src/ should ship behavior.ts AND scene.ts`).toContain('behavior.ts')
       expect(files, `${id}/src/ should ship behavior.ts AND scene.ts`).toContain('scene.ts')
     }
   })
 
-  it('every instance ships at least a fresh/healthy sample', async () => {
+  it('every single-kind instance ships at least a fresh/healthy sample', async () => {
     const ids = (await readdir(instancesDir)).filter(f => f.startsWith('acme-'))
     for (const id of ids) {
+      const m = await readYaml(join(instancesDir, id, 'package.sst.yaml'))
+      if (m.composition) continue // composite packages compose samples; they don't carry their own
       const samples = await readdir(join(instancesDir, id, 'samples'))
       // The first-listed sample is the canonical "fresh"/"healthy" one.
       expect(samples, `${id} should ship samples`).not.toContain([])

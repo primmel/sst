@@ -48,8 +48,22 @@ export interface PackageManifest {
   samples?: string[]
   provenance?: { certificate?: string; first_issued?: string }
 
+  // tier: primmel-instance — the composite overlay (spec 13)
+  composition?: CompositionDeclaration
+
   // Migration stubs
   status?: 'stub' | 'production'
+}
+
+/** A composite composition declaration (specs/13 §1). Replaces `kind`
+ *  for instance packages that boot as a system of components. */
+export interface CompositionDeclaration {
+  source_of_truth?: string
+  components: Record<string, { instance: string }>
+  decomposition: Record<string, string>
+  state_rule: string
+  state_rule_args?: Record<string, unknown>
+  couplings?: Array<{ from: string; to: string }>
 }
 
 export interface LoadedPackage {
@@ -173,33 +187,102 @@ interface AjvInstance {
 
 let _ajv: AjvInstance | undefined
 let _validator: ((data: unknown) => boolean) | undefined
+let _compositeValidator: ((data: unknown) => boolean) | undefined
 
-async function getValidator() {
-  if (_validator) return _validator
-  if (!_ajv) {
-    const { default: Ajv2020 } = await import('ajv/dist/2020.js')
-    const { default: addFormats } = await import('ajv-formats')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const Ctor = (Ajv2020 as any)
-    _ajv = new Ctor({ allErrors: true, strict: false }) as AjvInstance
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(addFormats as any)(_ajv as any)
-  }
-  const schemaPath = resolve(import.meta.dirname ?? '.', '..', '..', '..', 'specs', 'schemas', 'package-manifest.schema.json')
-  const schemaText = await readFile(schemaPath, 'utf-8').catch(() => null)
-  if (!schemaText) return null
-  const schema = JSON.parse(schemaText)
-  _validator = _ajv!.compile(schema)
-  return _validator
+// The schemas directory, resolved at module load via fileURLToPath
+// (import.meta.dirname has tsx-specific quirks inside async function
+// bodies; fileURLToPath(import.meta.url) is stable everywhere).
+import { fileURLToPath as _fileURLToPath } from 'node:url'
+const SCHEMAS_DIR = resolve(dirname(_fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'specs', 'schemas')
+
+async function loadAjv(): Promise<void> {
+  if (_ajv) return
+  const { default: Ajv2020 } = await import('ajv/dist/2020.js')
+  const { default: addFormats } = await import('ajv-formats')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Ctor = (Ajv2020 as any)
+  _ajv = new Ctor({ allErrors: true, strict: false }) as AjvInstance
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(addFormats as any)(_ajv as any)
+  const mainText = await readFile(join(SCHEMAS_DIR, 'package-manifest.schema.json'), 'utf-8').catch(() => null)
+  if (mainText) _validator = _ajv!.compile(JSON.parse(mainText))
+  const compositeText = await readFile(join(SCHEMAS_DIR, 'composite-package.schema.json'), 'utf-8').catch(() => null)
+  if (compositeText) _compositeValidator = _ajv!.compile(JSON.parse(compositeText))
 }
 
 export async function validateManifest(manifest: PackageManifest): Promise<void> {
-  const validate = await getValidator()
-  if (!validate) return
-  const ok = validate(manifest)
-  if (!ok) {
-    const errs = _ajv!.errors ?? []
-    const errors = errs.map((e) => `${e.instancePath || '(root)'}: ${e.message ?? 'invalid'}`)
-    throw new Error(`manifest validation failed for '${manifest.id ?? '<no-id>'}':\n  - ${errors.join('\n  - ')}`)
+  await loadAjv()
+  if (_validator) {
+    const ok = _validator(manifest)
+    if (!ok) {
+      const errs = (_validator as { errors?: Array<{ instancePath: string; message?: string }> }).errors ?? _ajv!.errors ?? []
+      const errors = errs.map((e) => `${e.instancePath || '(root)'}: ${e.message ?? 'invalid'}`)
+      throw new Error(`manifest validation failed for '${manifest.id ?? '<no-id>'}':\n  - ${errors.join('\n  - ')}`)
+    }
+  }
+  // Composite overlay: when the manifest carries `composition`, run the
+  // composite schema on top + the semantic checks the schema can't express
+  // (decomposition totality, state-rule registry membership, component
+  // path resolvability).
+  if (manifest.composition) {
+    if (!_compositeValidator) {
+      throw new Error(`composite manifest validation cannot proceed: composite-package.schema.json did not load`)
+    }
+    const ok = _compositeValidator(manifest)
+    if (!ok) {
+      const errs = (_compositeValidator as { errors?: Array<{ instancePath: string; message?: string }> }).errors ?? _ajv!.errors ?? []
+      const errors = errs.map((e) => `${e.instancePath || '(root)'}: ${e.message ?? 'invalid'}`)
+      throw new Error(`composite manifest validation failed for '${manifest.id ?? '<no-id>'}':\n  - ${errors.join('\n  - ')}`)
+    }
+    validateCompositionSemantics(manifest)
   }
 }
+
+/** Cross-field checks the JSON schema can't express. The package source
+ *  path is unknown to the schema, so resolvability + totality are checked
+ *  here. State-rule registry membership is checked in the runtime boot. */
+function validateCompositionSemantics(manifest: PackageManifest): void {
+  const c = manifest.composition
+  if (!c) return
+  // Decomposition totality: every composite register sourced exactly once.
+  const seen = new Map<string, number>()
+  for (const target of Object.keys(c.decomposition)) {
+    const source = c.decomposition[target]!
+    if (seen.has(source)) {
+      throw new Error(
+        `composite '${manifest.id}': decomposition source '${source}' is mapped to multiple composite registers ` +
+        `(${seen.get(source)} and ${target}) — each source may feed exactly one composite register`,
+      )
+    }
+    seen.set(source, target)
+  }
+  // Each decomposition value must be component.register.
+  for (const [target, source] of Object.entries(c.decomposition)) {
+    const parts = source.split('.')
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      throw new Error(
+        `composite '${manifest.id}': decomposition '${target}: ${source}' must be 'component.register'`,
+      )
+    }
+    if (!(parts[0]! in c.components) && parts[0] !== '<computed>') {
+      throw new Error(
+        `composite '${manifest.id}': decomposition '${target}' references unknown component '${parts[0]}' ` +
+        `(known components: ${Object.keys(c.components).join(', ')})`,
+      )
+    }
+  }
+  // Couplings reference existing components.
+  for (const coupling of c.couplings ?? []) {
+    for (const port of [coupling.from, coupling.to] as const) {
+      const [componentId] = port.split('.')
+      if (componentId && !(componentId in c.components)) {
+        throw new Error(
+          `composite '${manifest.id}': coupling ${port} references unknown component '${componentId}' ` +
+          `(known components: ${Object.keys(c.components).join(', ')})`,
+        )
+      }
+    }
+  }
+}
+
+// (debug code removed)

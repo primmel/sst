@@ -30,11 +30,20 @@ switch (command) {
     if (!target) { console.error('validate requires a package path'); process.exit(2) }
     try {
       const pkg = await loadPackage(target)
-      console.log(`✓ ${pkg.manifest.id} (${pkg.tier})`)
-      console.log(`  title: ${pkg.manifest.title}`)
-      if (pkg.manifest.kind)   console.log(`  kind: ${pkg.manifest.kind}`)
-      if (pkg.manifest.base)   console.log(`  base: ${pkg.manifest.base}`)
-      if (pkg.manifest.active_domain) console.log(`  active domain: ${pkg.manifest.active_domain}`)
+      const m = pkg.manifest
+      console.log(`✓ ${m.id} (${pkg.tier})` + (m.composition
+        ? ` — composite: ${Object.keys(m.composition.components).length} components, ${Object.keys(m.composition.decomposition).length} registers`
+        : ''))
+      console.log(`  title: ${m.title}`)
+      if (m.kind)              console.log(`  kind: ${m.kind}`)
+      if (m.base)              console.log(`  base: ${m.base}`)
+      if (m.active_domain)     console.log(`  active domain: ${m.active_domain}`)
+      if (m.composition) {
+        const c = m.composition
+        console.log(`  components: ${Object.keys(c.components).join(', ')}`)
+        console.log(`  state rule: ${c.state_rule}`)
+        if (c.couplings?.length) console.log(`  couplings: ${c.couplings.length}`)
+      }
     } catch (err) {
       console.error(`✗ ${(err as Error).message}`)
       process.exit(1)
