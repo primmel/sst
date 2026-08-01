@@ -95,7 +95,7 @@ privileged:
   set temperature <°C> | set humidity <%rh> | set pressure <kPa>
   play profile <id>                         a D 11 chamber program
   advance <n>s|m|h|d                        virtual time
-  scenario <name>                           swap the instrument
+  scenario <name>                           (v2: physics variants are boot-time samples — reboot with the sample appended)
   set fidelity offset <kg> [lag <s>]        twin-infidelity knobs (/world only)
   set thermal-hysteresis <perDegC> [tau <s>] the post-cycle difference knob
   fidelity reset                            the honest twin

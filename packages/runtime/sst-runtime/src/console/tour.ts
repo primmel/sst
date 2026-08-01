@@ -74,8 +74,8 @@ export const LC500_TOUR: TourStep[] = [
   },
   {
     narrate:
-      'Now the important lesson — the LYING TWIN. We swap the instrument for one that creeps (the creep-cell scenario): the applied load stays constant, but its served reading will drift.',
-    command: 'scenario creep-cell',
+      'Now the important lesson — the LYING TWIN. We tell the instrument to serve a false reading: a 2 kg offset on the SERVED value only. Reality is untouched — and that is the whole point.',
+    command: 'set fidelity offset 2',
   },
   {
     narrate: 'Fifteen virtual minutes pass:',
@@ -92,8 +92,8 @@ export const LC500_TOUR: TourStep[] = [
   },
   {
     narrate:
-      'Restore the honest instrument, and the bench is yours: help lists the commands (the bench web app shows the physical scene and the dial).',
-    command: 'scenario good-cell',
+      'Restore the honest instrument with fidelity reset. (One more thing: physics VARIANTS — a creeping cell, a drifting one — are boot-time SAMPLES, one boot one chain of custody. Exit and reboot with the sample appended, e.g. `… run …/acme-lc500 5290 creep-fail`, then the same 450 kg dwell creeps past the class allowance.) The bench is yours: help lists the commands (the bench web app shows the physical scene and the dial).',
+    command: 'fidelity reset',
   },
 ]
 

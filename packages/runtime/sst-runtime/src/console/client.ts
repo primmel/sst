@@ -62,7 +62,7 @@ export async function execute(action: ConsoleAction, io: ConsoleIo, state: Conso
     case 'playProfile': return fmt(await io.query('/world', `mutation { playProfile(profile: "${action.id}") { clock } }`))
     case 'advance': return fmt(await io.query('/world', `mutation { advanceTime(seconds: ${action.seconds}) { clock } }`))
     case 'setClockMode': return fmt(await io.query('/world', `mutation { setClockMode(mode: "${action.mode}") { mode } }`))
-    case 'scenario': return fmt(await io.query('/world', `mutation { scenario(name: "${action.name}") { clock } }`))
+    case 'scenario': return '% physics variants are boot-time SAMPLES on v2 — one boot, one sample, one chain of custody. Exit and reboot with the sample appended to the run command (e.g. … run …/acme-lc500 <port> creep-fail).'
     case 'setFidelity': return fmt(await io.query('/world', `mutation { setFidelity(servedOffsetKg: ${action.servedOffsetKg}, servedLagS: ${action.servedLagS}) { clock } }`))
     case 'setThermalHysteresis': return fmt(await io.query('/world', `mutation { setThermalHysteresis(perDegC: ${action.perDegC}${action.tauS !== undefined ? `, tauS: ${action.tauS}` : ''}) { clock } }`))
     case 'fidelityReset': return fmt(await io.query('/world', `mutation { setFidelity(servedOffsetKg: 0, servedLagS: 0) { clock } }`))
