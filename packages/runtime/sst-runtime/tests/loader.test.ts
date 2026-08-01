@@ -3,7 +3,8 @@ import { loadPackage } from '../src/package-loader.js'
 import { listKinds, lookupKind } from '../src/kinds/registry.js'
 import { resolve } from 'node:path'
 
-const REPO_ROOT = resolve(import.meta.dirname, '..', '..', '..', '..')
+import { LIB_ROOT } from './lib.js'
+const REPO_ROOT = LIB_ROOT
 
 const PACKAGES = [
   'packages/base/sst-oiml-base',
@@ -31,7 +32,7 @@ describe('@primmel/sst-runtime — package loader', () => {
   })
 
   it('rejects a path without a manifest', async () => {
-    await expect(loadPackage(resolve(REPO_ROOT, 'packages/runtime'))).rejects.toThrow(/no package\.sst\.yaml/)
+    await expect(loadPackage(resolve(REPO_ROOT, 'packages'))).rejects.toThrow(/no package\.sst\.yaml/)
   })
 })
 

@@ -3,9 +3,10 @@ import { resolve } from 'node:path'
 import { loadPackage } from '../src/package-loader.js'
 import { runSession } from '../src/session.js'
 import { createWorldDriver, type WorldDriver } from '../src/world/driver.js'
-import type { R60WorldMutations } from '../../../kinds/sst-r60/world-kind.d.ts'
+import type { R60WorldMutations } from '../src/world/r60-mutations.js'
 
-const ACME_LC500 = resolve(__dirname, '../../../instances/acme-lc500')
+import { instancePath } from './lib.js'
+const ACME_LC500 = instancePath('acme-lc500')
 const EPHEMERAL = 0
 
 const R60_MUTATIONS = {

@@ -3,7 +3,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
 
-const REPO_ROOT = resolve(import.meta.dirname, '..', '..', '..', '..')
+import { BASE_DIR, KINDS_DIR as KINDS, INSTANCES_DIR as INSTANCES } from './lib.js'
 
 const CONDITION_FIELDS = ['id', 'title', 'kind', 'classification', 'description', 'severity_levels'] as const
 const PROFILE_FIELDS = ['id', 'title', 'condition', 'keyframes'] as const
@@ -14,7 +14,7 @@ async function readYaml(path: string): Promise<Record<string, unknown>> {
 }
 
 describe('OIML SST base package — D 11 conditions', () => {
-  const conditionsDir = join(REPO_ROOT, 'packages', 'base', 'sst-oiml-base', 'conditions')
+  const conditionsDir = join(BASE_DIR, 'sst-oiml-base', 'conditions')
 
   it('ships at least 35 condition files (the D 11 canonical set)', async () => {
     const files = (await readdir(conditionsDir)).filter(f => f.endsWith('.yaml'))
@@ -55,7 +55,7 @@ describe('OIML SST base package — D 11 conditions', () => {
 })
 
 describe('OIML SST base package — D 11 profiles', () => {
-  const profilesDir = join(REPO_ROOT, 'packages', 'base', 'sst-oiml-base', 'profiles')
+  const profilesDir = join(BASE_DIR, 'sst-oiml-base', 'profiles')
 
   it('ships at least 3 canonical profiles', async () => {
     const files = (await readdir(profilesDir)).filter(f => f.endsWith('.yaml'))
@@ -79,7 +79,7 @@ describe('OIML SST base package — D 11 profiles', () => {
 })
 
 describe('OIML SST kind packages — manifest invariants', () => {
-  const kindsDir = join(REPO_ROOT, 'packages', 'kinds')
+  const kindsDir = KINDS
 
   it('ships all four kinds (R 60 / R 91 / R 129 / R 144)', async () => {
     const ids = (await readdir(kindsDir)).filter(f => f.startsWith('sst-r'))
@@ -110,7 +110,7 @@ describe('OIML SST kind packages — manifest invariants', () => {
 })
 
 describe('Primmel SST instance packages — manifest invariants', () => {
-  const instancesDir = join(REPO_ROOT, 'packages', 'instances')
+  const instancesDir = INSTANCES
 
   it('ships the ACME instances', async () => {
     const ids = (await readdir(instancesDir)).filter(f => f.startsWith('acme-'))

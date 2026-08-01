@@ -13,7 +13,8 @@ import { resolve } from 'node:path'
 import { loadPackage } from '../src/package-loader.js'
 import { runSession } from '../src/session.js'
 
-const SAMPLING_LINE = resolve(__dirname, '../../../instances/acme-cgm-sampling-line')
+import { instancePath } from './lib.js'
+const SAMPLING_LINE = instancePath('acme-cgm-sampling-line')
 const EPHEMERAL = 0
 
 async function gql(url: string, channel: '/twin' | '/world', query: string): Promise<any> {

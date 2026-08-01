@@ -3,6 +3,7 @@
 // and rejects each schema-violation class with a precise message.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { instancePath } from './lib.js'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -125,7 +126,7 @@ describe('the composite package loader leg (specs/13 §5)', () => {
 
   it('the canonical acme-cgm-system composite loads', async () => {
     // The repo's real composite package — end-to-end check.
-    const pkg = await loadPackage(join(__dirname, '..', '..', '..', 'instances', 'acme-cgm-system'))
+    const pkg = await loadPackage(instancePath('acme-cgm-system'))
     expect(pkg.manifest.id).toBe('acme-cgm-system')
     expect(pkg.manifest.composition).toBeDefined()
     expect(pkg.manifest.composition!.state_rule).toBe('any_fault_else_analyzer')

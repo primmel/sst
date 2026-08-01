@@ -9,7 +9,8 @@ import { listStages } from '../src/stages/registry.js'
 import { ComposedInstrument } from '../src/stages/composer.js'
 import { resolve } from 'node:path'
 
-const R60_CHAIN_PATH = resolve(__dirname, '../../../kinds/sst-r60/physics-chain.yaml')
+import { kindPath } from './lib.js'
+const R60_CHAIN_PATH = resolve(kindPath('sst-r60'), 'physics-chain.yaml')
 
 const COEFFS = {
   capacity_kg: 500,

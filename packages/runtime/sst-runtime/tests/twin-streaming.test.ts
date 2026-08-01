@@ -3,7 +3,8 @@ import { resolve } from 'node:path'
 import { loadPackage } from '../src/package-loader.js'
 import { runSession } from '../src/session.js'
 
-const ACME_LC500 = resolve(__dirname, '../../../instances/acme-lc500')
+import { instancePath } from './lib.js'
+const ACME_LC500 = instancePath('acme-lc500')
 const EPHEMERAL = 0
 
 describe('real-time twin streaming (GET /twin/stream SSE)', () => {

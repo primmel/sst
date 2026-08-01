@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { loadPackage } from '../src/package-loader.js'
 import { runSession } from '../src/session.js'
 
-const INSTANCES_DIR = resolve(__dirname, '../../../instances')
+import { INSTANCES_DIR } from './lib.js'
 const EPHEMERAL = 0
 
 describe('TODO 33 — sibling kinds boot via the strategy registry', () => {

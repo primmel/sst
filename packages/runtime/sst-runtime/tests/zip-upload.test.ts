@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os'
 import { randomBytes } from 'node:crypto'
 import { loadPackage, extractZip } from '../src/package-loader.js'
 
-const ACME_LC500 = resolve(__dirname, '../../../instances/acme-lc500')
+import { instancePath } from './lib.js'
+const ACME_LC500 = instancePath('acme-lc500')
 
 async function makeTempPath(prefix: string): Promise<string> {
   const name = `${prefix}-${randomBytes(8).toString('hex')}`

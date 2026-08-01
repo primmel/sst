@@ -7,7 +7,8 @@ import { randomBytes } from 'node:crypto'
 import { loadPackage } from '../src/package-loader.js'
 import { runSession } from '../src/session.js'
 
-const ACME_LC500 = resolve(__dirname, '../../../instances/acme-lc500')
+import { instancePath } from './lib.js'
+const ACME_LC500 = instancePath('acme-lc500')
 const EPHEMERAL = 0
 
 async function buildZip(srcDir: string, destZip: string): Promise<string> {

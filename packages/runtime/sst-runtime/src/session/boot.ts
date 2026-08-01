@@ -37,9 +37,12 @@ import { parseMpeConfig } from '../certification/verdict.js'
 // boot.ts lives at packages/runtime/sst-runtime/src/session/boot.ts.
 // SESSION_DIR = .../session; REPO_ROOT climbs 5 levels from there.
 const SESSION_DIR = resolve(fileURLToPath(import.meta.url), '..')
+import { resolveLibraryPaths } from '../library-paths.js'
+
 const REPO_ROOT = resolve(SESSION_DIR, '..', '..', '..', '..', '..')
-const DEFAULT_KINDS_DIR = join(REPO_ROOT, 'packages', 'kinds')
-const DEFAULT_INSTANCES_DIR = join(REPO_ROOT, 'packages', 'instances')
+const LIBRARY = resolveLibraryPaths()
+const DEFAULT_KINDS_DIR = LIBRARY.kindsDir
+const DEFAULT_INSTANCES_DIR = LIBRARY.instancesDir
 
 function kindDir(kindId: string, packagesDir: string): string {
   // 'primmel-sst-r60' → 'sst-r60'

@@ -6,8 +6,15 @@
 
 import { parseArgs } from 'node:util'
 import { loadPackage } from './package-loader.js'
+import { resolveLibraryPaths } from './library-paths.js'
 import { listKinds } from './kinds/registry.js'
 import { runSession } from './session.js'
+
+/** The instrument library's location — one resolution (src/library-paths.ts). */
+function libraryPaths(): { kindsDir: string; instancesDir: string } {
+  const lib = resolveLibraryPaths()
+  return { kindsDir: lib.kindsDir, instancesDir: lib.instancesDir }
+}
 import { httpConsoleIo } from './console/client.js'
 import { runConsole } from './console/readline.js'
 
@@ -78,7 +85,10 @@ switch (command) {
       const session = await runSession(pkg, {
         port,
         sample: positionals[3],
-      })
+        // The /world mutation guard (TODO.v2/11): the env is the knob —
+        // set ⇒ mutations need the bearer, queries stay open.
+        worldToken: process.env.SIM_WORLD_TOKEN,
+      }, libraryPaths())
       // --console: drive a readline loop against the booted session.
       // The grammar is load-cell-shaped (place load, remove load, …);
       // other kinds drive via /world directly. See CLAUDE.md.

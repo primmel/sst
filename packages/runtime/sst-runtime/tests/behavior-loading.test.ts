@@ -6,7 +6,8 @@ import { hasBehavior, loadBehavior } from '../src/kinds/behavior-loader.js'
 import { buildInstanceDefinition } from '../src/kinds/definition-builder.js'
 import { VirtualClock } from '../src/time.js'
 
-const INSTANCES = resolve(__dirname, '../../../instances')
+import { INSTANCES_DIR } from './lib.js'
+const INSTANCES = INSTANCES_DIR
 const EPHEMERAL = 0
 
 describe('plug-and-play behavior.js loading', () => {
