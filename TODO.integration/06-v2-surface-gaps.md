@@ -1,4 +1,4 @@
-# 06 — The v2 surface gaps (found during consumer integration)
+# 06 — The v2 surface gaps — ✅ ALL FOUR FIXED (sst a78508c + instruments d87d00b; each marked below with its proof)
 
 **Priority:** P2 · **Size:** small · **From:** the smart-repo consumer
 sweep (oimlsmart/smart, integrating the v2 report-back) ·
@@ -23,7 +23,7 @@ however, read as **gaps, not redesigns** — the gas surface kept both
 capabilities, so the lc500 surface losing them looks like unwired
 surface, not intent.
 
-## Gap 1 — the environment read-back
+## Gap 1 — ✅ FIXED — the environment read-back
 
 v1/legacy: `groundTruth.environment { temperatureDegC humidityPercentRh
 pressureKPa }` was queryable on `/world`. v2: the `Environment` type
@@ -44,7 +44,7 @@ omission is deliberate (conditions observable only through physics),
 a normative line in specs/10 saying so, so consumers design against
 the decision instead of the silence.
 
-## Gap 2 — the warm-up arc is unreachable
+## Gap 2 — ✅ FIXED — the warm-up arc (boot/reset → warming, ready at 5τ)
 
 v1/legacy: boot started at `warming`; `advanceTime` past the warm-up
 tau transitioned to `ready`. v2: boot and `reset` both land straight
@@ -63,7 +63,7 @@ behavior the kind interface still advertises and nothing can reach.
 stabilized normatively in specs/10 and drop `warming` from the union
 so the interface stops promising a state it can't enter.
 
-## Gap 3 — the mechanical stage does not integrate (strain = 0, creep never develops)
+## Gap 3 — ✅ FIXED — the mechanical stage integrates (creep-fail creeps 450 → 451.8; strainMm ≠ 0)
 
 Found by the behavioral legs (behavior-probe's CREEP-CELL and the
 sim acceptance's creep phase — the two legs whose whole job is creep
@@ -95,7 +95,7 @@ fidelity class has no physics to judge until it lands.
 boot (the probe above is the acceptance: strain ≠ 0 under load; the
 creep-fail sample creeps ≈ coefficient × load × (1 − e^(−t/τ))).
 
-## Gap 4 — the SIM_WORLD_TOKEN guard did not survive the rewrite
+## Gap 4 — ✅ FIXED — the SIM_WORLD_TOKEN guard (401 without, 200 with, queries open)
 
 v1/legacy: a sim booted with `SIM_WORLD_TOKEN` set rejected token-less
 /world mutations with 401 (`unauthorized: /world mutations require
