@@ -1,11 +1,12 @@
 // session.ts — boot a running SST session from a loaded instance.
 //
-// The public entry; delegates to session/boot.ts (TODO 24) which
-// actually composes the base + kind + instance into a running server.
+// The public entry; delegates to session/boot.ts (single-kind) or
+// session/composite.ts (composite, spec §13) based on the manifest.
 
 import type { LoadedPackage } from './package-loader.js'
 import { lookupKind } from './kinds/registry.js'
 import { bootSession, type BootPaths } from './session/boot.js'
+import { composeSession } from './session/composite.js'
 
 export interface SessionOptions {
   port?: number
@@ -26,25 +27,22 @@ export interface Session {
 }
 
 /**
- * Boot a running SST session for an instance package.
+ * Boot a running SST session.
  *
- * Resolves the instance's referenced kind, loads its physics-chain.yaml,
- * composes a ComposedInstrument with the data-driven composer, builds the
- * /world and /twin schemas, and boots createSimServer. Returns the
- * session handle (URL + close()).
- *
- * Currently wired for `primmel-sst-r60` (load cells). Sibling kinds
- * (R 91 / R 129 / R 144) need their own world-kind + twin-contract
- * registrations — see session/boot.ts.
+ * Dispatches on the manifest:
+ *   - if `composition` is present: composite boot (composeSession).
+ *   - otherwise: single-kind boot (runSession / bootSession).
  */
 export async function runSession(
   instance: LoadedPackage,
   opts: SessionOptions = {},
   paths: BootPaths = {},
 ): Promise<Session> {
+  if (instance.manifest.composition) {
+    return composeSession(instance, opts, paths)
+  }
   // Pre-flight: ensure the referenced kind is registered, so the error
   // message is helpful before bootSession kicks off filesystem work.
   if (instance.manifest.kind) lookupKind(instance.manifest.kind)
-
   return bootSession(instance, opts, paths)
 }

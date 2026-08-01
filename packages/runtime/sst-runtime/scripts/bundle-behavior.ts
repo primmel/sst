@@ -33,15 +33,15 @@ const options: BuildOptions = {
   sourcemap: false,
   legalComments: 'none',
   logLevel: 'info',
-  // Node builtins stay external (esbuild handles this automatically for
-  // platform: 'node', but explicitly listing them documents the contract).
-  // Everything else — including @primmel/sst-runtime — is bundled inline
-  // so the behavior.js is self-contained: it loads from a monorepo
-  // checkout, an uploaded ZIP extracted to /tmp, or any future
-  // deployment, with zero node_modules resolution. The runtime's
-  // physics library becomes part of the instance's bundled artifact
-  // (the price of true plug-and-play).
-  external: [],
+  // graphql + graphql-yoga are peer deps — every behavior.js loads inside
+  // the runtime's module graph where they're already installed. Bundling
+  // them inline creates duplicate instances ("Cannot use GraphQLSchema
+  // from another realm" — graphql-yoga's instanceof check fails across
+  // realms). Marking them external lets the bundle resolve them from the
+  // host's node_modules at runtime, sharing the single instance.
+  // All OTHER @primmel/sst-runtime code is bundled inline — the behavior.js
+  // is otherwise self-contained.
+  external: ['graphql', 'graphql-yoga', '@graphql-tools/utils', '@graphql-tools/executor', '@whatwg-node/fetch', '@whatwg-node/server', '@whatwg-node/promise-helpers'],
   banner: {
     js: `import { createRequire as _cr } from 'module'; const require = _cr(import.meta.url);`,
   },

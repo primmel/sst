@@ -97,6 +97,12 @@ export class SimulatedGasAnalyzer {
   #channels = new Map<GasComponent, Channel>()
   #env: Environment = { ...REFERENCE_ENVIRONMENT }
   #bench: GasBench
+  /** The composite coupling port: source composition upstream of any
+   *  sampling line. setGasConcentration writes here (and to #bench for
+   *  standalone compatibility); the runtime's per-tick coupler reads
+   *  this to feed a downstream sampling line. */
+  #sourceCoPpm = 0
+  #sourceNoxPpm = 0
   #poweredAt = 0
   #state: OperationalState = 'warming'
   #lastDt = 0.001
@@ -169,8 +175,13 @@ export class SimulatedGasAnalyzer {
   setGasConcentration(component: GasComponent, ppm: number): void {
     this.#channel(component) // validates the component
     if (!(ppm >= 0)) throw new Error(`concentration must be ≥ 0, got ${ppm}`)
-    if (component === 'co') this.#bench.coPpm = ppm
-    else this.#bench.noxPpm = ppm
+    if (component === 'co') {
+      this.#bench.coPpm = ppm
+      this.#sourceCoPpm = ppm
+    } else {
+      this.#bench.noxPpm = ppm
+      this.#sourceNoxPpm = ppm
+    }
   }
   setNo2Fraction(fraction: number): void {
     if (!(fraction >= 0 && fraction <= 1)) throw new Error(`NO2 fraction must be in 0..1, got ${fraction}`)
@@ -186,6 +197,26 @@ export class SimulatedGasAnalyzer {
       this.#bench.h2oPercentVol = i.h2oPercentVol
     }
   }
+
+  /** The composite coupling port: the source composition upstream of
+   *  any sampling line. setGasConcentration writes here (and to the
+   *  bench for standalone compatibility); the runtime's per-tick
+   *  coupler reads this to feed a downstream sampling line. */
+  sourceComposition(): { coPpm: number; noxPpm: number } {
+    return { coPpm: this.#sourceCoPpm, noxPpm: this.#sourceNoxPpm }
+  }
+
+  /** The composite coupling port: the runtime writes the sampling
+   *  line's outlet composition here each tick. The bench then reflects
+   *  what's actually reaching the analyzer cell (delayed + diluted). */
+  setInletComposition(c: { coPpm?: number; noxPpm?: number; no2Fraction?: number; co2PercentVol?: number; h2oPercentVol?: number }): void {
+    if (c.coPpm != null) this.#bench.coPpm = c.coPpm
+    if (c.noxPpm != null) this.#bench.noxPpm = c.noxPpm
+    if (c.no2Fraction != null) this.#bench.no2Fraction = c.no2Fraction
+    if (c.co2PercentVol != null) this.#bench.co2PercentVol = c.co2PercentVol
+    if (c.h2oPercentVol != null) this.#bench.h2oPercentVol = c.h2oPercentVol
+  }
+
   setSampleFlow(lPerMin: number): void {
     if (!(lPerMin > 0)) throw new Error(`sample flow must be > 0, got ${lPerMin}`)
     this.#bench.flowLPerMin = lPerMin
