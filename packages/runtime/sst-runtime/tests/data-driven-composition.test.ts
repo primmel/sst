@@ -124,10 +124,11 @@ describe('TODO 23 — data-driven stage composition', () => {
     }, clock, 42)
 
     inst.placeMass(200)
-    // Tick enough times for the filter to settle
+    // Tick enough times for the filter to settle. The ComposedInstrument
+    // self-subscribes to clock advances (composer.ts:84), so clock.advance
+    // drives the chain — no separate .tick() call.
     for (let i = 0; i < 50; i++) {
       clock.advance(0.1)
-      inst.tick(0.1)
     }
     const ind = inst.indication()
     expect(ind.unit).toBe('kg')
@@ -159,9 +160,12 @@ describe('TODO 23 — data-driven stage composition', () => {
 
     dataDriven.placeMass(200)
     legacy.placeMass(200)
+    // Both ComposedInstrument instances self-subscribe to their clocks
+    // (composer.ts:84); advancing the clock drives both signal chains
+    // in lockstep. No explicit .tick() — that would double-tick.
     for (let i = 0; i < 50; i++) {
-      clockA.advance(0.1); dataDriven.tick(0.1)
-      clockB.advance(0.1); legacy.tick(0.1)
+      clockA.advance(0.1)
+      clockB.advance(0.1)
     }
     expect(Math.abs(dataDriven.indication().value - legacy.indication().value)).toBeLessThan(1e-6)
   })

@@ -60,6 +60,7 @@ export interface ComposedInstrumentConfig {
     #fidelity: { servedOffsetKg: number; servedLagS: number }
   #faulted = false
   #fixedKgPerMVperV = 25
+  #atCapacity = 1                   // capacity (kg) × compliance (mm/kg); used to normalize strainMm → fraction
   #zeroOffsetKg = 0          // adjusted by zeroSetting()
   #selfTestResult: 'pass' | 'fail' | null = null
     #lastIndication: Qty = { value: 0, unit: 'kg', kind: 'mass' }
@@ -76,6 +77,12 @@ export interface ComposedInstrumentConfig {
         servedOffsetKg: config.fidelity?.servedOffsetKg ?? 0,
         servedLagS: config.fidelity?.servedLagS ?? 0,
       }
+      // Self-subscribe to clock advances — the signal chain ticks on
+      // every advance, just like SimulatedInstrument (instrument.ts:87)
+      // and SimulatedGasAnalyzer (gas-instrument.ts:132). Without this,
+      // indication() returns the initial { value: 0 } forever; the
+      // stages never run.
+      clock.onAdvance(dt => this.tick(dt))
 
       if (config.physicsChain) {
         // Data-driven path: resolve stages from STAGE_REGISTRY, pipe
@@ -109,6 +116,8 @@ export interface ComposedInstrumentConfig {
       // Legacy direct-stage path (no physics-chain.yaml provided).
       const profile = CONSTRUCTION_PROFILES[config.classification.construction] ?? CONSTRUCTION_PROFILES['compression']!
       const c = config.coefficients
+      const capacityKg = c.capacity_kg ?? 500
+      this.#atCapacity = capacityKg * profile.complianceKgPerMm
       this.#mech = new MechanicalStage(profile, mulberry32(seed))
       this.#trans = new TransductionStage({
         sensitivityMVperV: c.sensitivity_mVperV ?? 2.0,
@@ -193,9 +202,14 @@ export interface ComposedInstrumentConfig {
       // Legacy direct-stage path.
       this.#mech.setLoad(this.#appliedLoadKg)
       this.#mech.advance(dtS)
-      const strainMm = this.#mech.strainMm
+      // Normalize strain to fraction-of-rated-full-scale before feeding
+      // the transduction stage — matches SimulatedInstrument.#strainFraction
+      // (instrument.ts:103). The legacy direct-stage path used raw mm
+      // here, producing near-zero bridge output and indication stuck at
+      // one scale interval.
+      const strainFraction = this.#atCapacity > 0 ? this.#mech.strainMm / this.#atCapacity : 0
       this.#trans.advance(dtS, this.#env)
-      const bridgeMVperV = this.#trans.output(strainMm, this.#env)
+      const bridgeMVperV = this.#trans.output(strainFraction, this.#env)
       const condOut = this.#cond.process(bridgeMVperV, dtS, this.#env, this.#fixedKgPerMVperV)
       rawIndicationKg = condOut.indicationKg
     }

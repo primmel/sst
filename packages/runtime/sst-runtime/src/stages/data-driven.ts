@@ -177,17 +177,28 @@ const coeff = (c: Record<string, number>, key: string, fallback: number): number
 // r60/mechanical-* — wraps MechanicalStage. Profile chosen by suffix.
 // The construction profile is looked up by key; unknown profiles fall
 // back to 'compression' (the only registered profile in v1).
+//
+// PORT CONTRACT: the `strain_mm` port carries strain AS A FRACTION OF
+// RATED FULL-SCALE, not in millimetres — the downstream transduction
+// stage's output(strainMm, …) multiplies span × strainMm where strainMm
+// is the fraction (legacy SimulatedInstrument.#strainFraction at
+// instrument.ts:103). Without this normalization, a 40 kg load on a
+// 500 kg cell produces strainMm=8e-5 mm; the transduction produces
+// 0.00016 mV/V; conditioning rounds to one scale interval (0.05 kg)
+// and the indication sits at the floor — the data-driven lc500 boot
+// bug the smart side's `prefer: 'legacy-bin'` worked around.
 function makeR60Mechanical(profileKey: string): StageFactory {
   return {
     stageKey: '',
-    create({ seed }: StageCreateParams): Stage {
+    create({ coefficients: c, seed }: StageCreateParams): Stage {
       const profile = CONSTRUCTION_PROFILES[profileKey] ?? CONSTRUCTION_PROFILES['compression']!
       const stage = new MechanicalStage(profile, mulberry32(seed))
+      const atCapacity = (c['capacity_kg'] ?? 500) * profile.complianceKgPerMm
       return {
         process(inputs: PortMap, ctx: TickContext): PortMap {
           stage.setLoad(inputs['applied_load_kg'] ?? 0)
           stage.advance(ctx.dtS)
-          return { strain_mm: stage.strainMm }
+          return { strain_mm: atCapacity > 0 ? stage.strainMm / atCapacity : 0 }
         },
       }
     },
