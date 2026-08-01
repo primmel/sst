@@ -21,7 +21,7 @@ export interface SimServerOptions {
   worldSchema: GraphQLSchema
   /** the generated/baked twin schema; absent → honest placeholder. */
   twinSchema?: GraphQLSchema | undefined
-  /** static bench directory (the @sim/bench build output); absent →
+  /** static bench directory (the @primmel/sst-bench build output); absent →
    *  the built-in landing page. */
   benchDir?: string | undefined
   /** 0 = ephemeral. */

@@ -1,0 +1,26 @@
+---
+// src/pages/index.astro — the bench shell. Astro server-renders the
+// layout + fonts + design tokens; BenchApp.vue (client:load) hydrates
+// the interactive surface. The sim serves the built dist/ statically.
+import '../styles/global.css'
+import BenchApp from '../components/BenchApp.vue'
+
+const title = 'Primmel SMART Twin Simulator — Load Cells'
+---
+<!doctype html>
+<html lang="en" style="color-scheme: dark;">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <BenchApp client:load />
+  </body>
+</html>

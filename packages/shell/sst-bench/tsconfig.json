@@ -1,0 +1,24 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": [
+    "dist",
+    "src/main.ts",
+    "src/terminal.ts",
+    "src/bench.ts",
+    "src/how-it-works.ts",
+    "src/quick-actions.ts"
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@core/*": ["../../core/src/*"],
+      "@/*": ["src/*"]
+    },
+    "jsx": "preserve",
+    "useDefineForClassFields": true,
+    "verbatimModuleSyntax": false,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  }
+}

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>sim-lc500 bench</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #f6f5f2; color: #1c1c1e; }
+    header { padding: 0.6rem 1rem; background: #26252b; color: #f6f5f2; display: flex; gap: 1rem; align-items: baseline; }
+    header h1 { font-size: 1rem; margin: 0; font-weight: 600; }
+    header .chan { font-size: 0.75rem; opacity: 0.75; }
+    main { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: minmax(46vh, auto) 1fr; gap: 0.6rem; padding: 0.6rem; }
+    .pane { background: #fff; border: 1px solid #e2e0da; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+    .pane h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0; padding: 0.5rem 0.8rem; background: #efece6; border-bottom: 1px solid #e2e0da; }
+    #bench-canvas { width: 100%; aspect-ratio: 16/9; display: block; background: linear-gradient(#dfe7ee, #f6f5f2); }
+    #dials { display: flex; gap: 1rem; padding: 0.5rem 0.8rem; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+    #indication { margin-left: auto; font-size: 1.25rem; font-weight: 700; }
+    #terminal-log { flex: 1; overflow-y: auto; padding: 0.6rem 0.8rem; font-family: ui-monospace, monospace; font-size: 0.82rem; white-space: pre-wrap; min-height: 12rem; max-height: 46vh; }
+    #terminal-log .in { color: #6a4; } #terminal-log .err { color: #b33; }
+    #terminal-form { display: flex; border-top: 1px solid #e2e0da; }
+    #terminal-prompt { padding: 0.5rem 0 0.5rem 0.8rem; font-family: ui-monospace, monospace; }
+    #terminal-input { flex: 1; border: 0; padding: 0.5rem 0.8rem 0.5rem 0.4rem; font: inherit; font-family: ui-monospace, monospace; outline: none; }
+    #how { padding: 0.6rem 0.8rem; font-size: 0.85rem; line-height: 1.55; overflow-y: auto; }
+    #dial-scale { display: flex; justify-content: center; padding: 0.6rem 0.8rem 0; }
+    #dial-scale svg { width: 15rem; max-width: 100%; }
+    #dial-note { margin: 0; padding: 0 0.8rem 0.6rem; font-size: 0.75rem; color: #555; text-align: center; }
+    #how table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+    #how td, #how th { text-align: left; padding: 0.15rem 0.4rem; border-bottom: 1px solid #efeeea; }
+    #how .law { color: #555; font-style: italic; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="title">sim-lc500 bench</h1>
+    <span class="chan">/world — the physical world (you play it)</span>
+    <span class="chan">/twin — the instrument's legal view</span>
+  </header>
+  <main>
+    <section class="pane" id="pane-bench">
+      <h2>The bench</h2>
+      <canvas id="bench-canvas" width="960" height="540"></canvas>
+      <div id="dials">
+        <span id="dial-temp">20.0 °C</span>
+        <span id="dial-rh">50 %Rh</span>
+        <span id="dial-press">101.3 kPa</span>
+        <span id="dial-clock">t = 0 s</span>
+        <span id="indication">— kg</span>
+      </div>
+    </section>
+    <section class="pane" id="pane-terminal">
+      <h2>Terminal</h2>
+      <div id="terminal-log"></div>
+      <form id="terminal-form"><span id="terminal-prompt">sim&gt;</span><input id="terminal-input" autocomplete="off" autofocus /></form>
+    </section>
+    <section class="pane" id="pane-dial">
+      <h2>The paired dial — a passive indicator</h2>
+      <div id="dial-scale"></div>
+      <p id="dial-note">No twin interface — you read the needle; the app never serves it.</p>
+    </section>
+    <section class="pane" id="pane-how">
+      <h2>How it works — the live signal chain</h2>
+      <div id="how"></div>
+    </section>
+  </main>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

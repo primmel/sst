@@ -6,7 +6,6 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "packages/lc500/bench",
     "packages/runtime/*",
     "packages/shell/*"
   ],

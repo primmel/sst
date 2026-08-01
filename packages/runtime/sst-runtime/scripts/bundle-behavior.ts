@@ -4,12 +4,15 @@
 // Usage: npx tsx scripts/bundle-behavior.ts <instance-root>
 //
 // The output is written to <instance-root>/behavior.js — the artifact
-// the runtime's loadBehavior() imports at boot time. The bundle
-// inlines all imports (no node_modules resolution needed at runtime).
+// the runtime's loadBehavior() imports at boot time. The bundle inlines
+// ALL imports — including @primmel/sst-runtime — so the behavior.js is
+// self-contained: it loads from a monorepo checkout, an uploaded ZIP
+// extracted to /tmp, or any future deployment, with zero node_modules
+// resolution. The runtime's physics library becomes part of the
+// instance's bundled artifact (the price of true plug-and-play).
 
 import { build, type BuildOptions } from 'esbuild'
 import { resolve, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 const instanceRoot = process.argv[2]
 if (!instanceRoot) {
@@ -30,10 +33,18 @@ const options: BuildOptions = {
   sourcemap: false,
   legalComments: 'none',
   logLevel: 'info',
-  // The runtime is always present at boot time — mark it external.
-  // The bundled behavior.js uses `import ... from '@primmel/sst-runtime'`
-  // which the runtime's own module system resolves.
-  external: ['@primmel/sst-runtime', '@primmel/sst-runtime/*'],
+  // Node builtins stay external (esbuild handles this automatically for
+  // platform: 'node', but explicitly listing them documents the contract).
+  // Everything else — including @primmel/sst-runtime — is bundled inline
+  // so the behavior.js is self-contained: it loads from a monorepo
+  // checkout, an uploaded ZIP extracted to /tmp, or any future
+  // deployment, with zero node_modules resolution. The runtime's
+  // physics library becomes part of the instance's bundled artifact
+  // (the price of true plug-and-play).
+  external: [],
+  banner: {
+    js: `import { createRequire as _cr } from 'module'; const require = _cr(import.meta.url);`,
+  },
 }
 
 await build(options)

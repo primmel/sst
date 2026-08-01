@@ -1,0 +1,128 @@
+/* global.css — Tailwind 4 + the bench's design tokens.
+   The aesthetic: anodized instrument chassis. Deep charcoal surfaces
+   (not pure black), warm amber for /twin (the instrument's legal view),
+   cool blue for /world (physical reality). The two channels are color-
+   coded because the epistemic split is the product's central thesis. */
+@import "tailwindcss";
+
+@theme {
+  /* Surfaces — rack-metal charcoals, warm-cool balanced */
+  --color-base: #14171C;
+  --color-surface-1: #1B1F26;
+  --color-surface-2: #232831;
+  --color-surface-3: #2C333D;
+  --color-inset: #0C0F14;
+
+  /* Lines */
+  --color-line: #2D333D;
+  --color-line-strong: #3D4452;
+  --color-line-soft: #232830;
+
+  /* Foregrounds — warm whites, like aged instrument labels */
+  --color-fg: #E6E2D8;
+  --color-fg-dim: #A8A39A;
+  --color-fg-mute: #6E6A63;
+
+  /* Channel identity */
+  --color-twin: #E8A33D;
+  --color-twin-bright: #F5B856;
+  --color-twin-soft: rgba(232, 163, 61, 0.12);
+  --color-twin-line: rgba(232, 163, 61, 0.32);
+  --color-world: #6FA8DC;
+  --color-world-bright: #88BEF0;
+  --color-world-soft: rgba(111, 168, 220, 0.12);
+  --color-world-line: rgba(111, 168, 220, 0.32);
+
+  /* Semantic */
+  --color-ok: #7BC66A;
+  --color-warn: #E8C547;
+  --color-err: #E15F5F;
+
+  /* Typefaces */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* Custom easings */
+  --ease-drawer: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Base reset for the app shell */
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--color-base);
+  color: var(--color-fg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* The epistemic wall — a luminous seam between world (left) and twin
+   (right). The product's central thesis, made structural. */
+.epistemic-wall {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: calc(100% * 1.15 / 2.15);
+  width: 1px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(232, 163, 61, 0.18) 20%,
+    rgba(111, 168, 220, 0.28) 50%,
+    rgba(232, 163, 61, 0.18) 80%,
+    transparent 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+.epistemic-wall-label {
+  position: absolute;
+  top: 50%;
+  left: calc(100% * 1.15 / 2.15);
+  transform: translate(-50%, -50%);
+  writing-mode: vertical-rl;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-fg-mute);
+  background: var(--color-base);
+  padding: 0.75rem 0.25rem;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* Custom scrollbar (webkit) */
+.scroll-pretty::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-pretty::-webkit-scrollbar-track { background: transparent; }
+.scroll-pretty::-webkit-scrollbar-thumb { background: var(--color-surface-3); border-radius: 4px; }
+.scroll-pretty::-webkit-scrollbar-thumb:hover { background: var(--color-line-strong); }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.pulse-dot { animation: pulse-dot 2.4s ease-in-out infinite; }
+
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 163, 61, 0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(232, 163, 61, 0); }
+}
+.cta-pulse { animation: cta-pulse 2.4s ease-in-out infinite; }
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+.blink { animation: blink 1.06s steps(2, start) infinite; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
