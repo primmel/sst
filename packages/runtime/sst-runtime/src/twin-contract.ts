@@ -242,7 +242,7 @@ export const GAS_ANALYZER_FULL_MODEL = {
 } as const satisfies InstrumentModel
 
 /** The RS-180 contract — R 91 (Doppler radar speed meter). Sourced from
- *  the baked artifact at packages/r91/twin/r91.twin.json. Declared
+ *  the baked artifact at packages/kinds/sst-r91/twin/r91.twin.json. Declared
  *  `as const satisfies TwinContract` for the typed TwinDriver. */
 export const RS180_CONTRACT = {
   instrumentId: 'acme-rs180',
@@ -275,7 +275,7 @@ export const RS180_FULL_MODEL = {
 } as const satisfies InstrumentModel
 
 /** The MD-3xx contract — R 129 (optical multi-dimensional measuring
- *  instrument). Sourced from packages/md/twin/md.twin.json. */
+ *  instrument). Sourced from packages/kinds/sst-r129/twin/r129.twin.json. */
 export const MD3XX_CONTRACT = {
   instrumentId: 'acme-md3xx',
   serves: [

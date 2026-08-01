@@ -55,19 +55,17 @@ function kindDir(kindId: string, packagesDir: string): string {
   return join(packagesDir, folder)
 }
 
-/** Map each kind to its baked twin contract artifact. Each kind's
- *  canonical instance family ships the artifact; the runtime reuses
- *  it for any instance of that kind. Adding a new kind's twin contract
- *  = adding one entry here + baking the artifact. */
-const TWIN_CONTRACT_PATHS: Record<string, string> = {
-  'primmel-sst-r60':  join(REPO_ROOT, 'packages', 'lc500',         'twin', 'lc500.twin.json'),
-  'primmel-sst-r91':  join(REPO_ROOT, 'packages', 'r91',           'twin', 'r91.twin.json'),
-  'primmel-sst-r129': join(REPO_ROOT, 'packages', 'md',            'twin', 'md.twin.json'),
-  'primmel-sst-r144': join(REPO_ROOT, 'packages', 'gas-analyzer',  'twin', 'cgm200.twin.json'),
-}
-
-function siblingTwinContractPath(kindId: string): string | null {
-  return TWIN_CONTRACT_PATHS[kindId] ?? null
+/** Map each kind to its baked twin contract artifact. Each kind package
+ *  ships its twin contract at packages/kinds/<id>/twin/<id>.twin.json,
+ *  baked from the canonical Primmel product package that references
+ *  this kind. Adding a new kind's twin contract = baking the artifact
+ *  into the kind package (no entry here needed — paths follow the
+ *  convention). */
+function kindTwinContractPath(kindId: string, kindsDir: string): string {
+  // 'primmel-sst-r60' → 'sst-r60' → kinds/sst-r60/twin/r60.twin.json
+  const folder = kindId.replace(/^primmel-/, '')
+  const file = folder.replace(/^sst-/, '') + '.twin.json'
+  return join(kindsDir, folder, 'twin', file)
 }
 
 // ── Coefficients loading ──────────────────────────────────────────────
@@ -289,9 +287,9 @@ export async function bootSession(
   // 4. Build the /twin schema (kind's baked contract, enriched with
   //    the full InstrumentModel sourced from the instance manifest +
   //    the kind's mpe.yaml — the digital twin mirrors the full model).
-  const twinContractPath = siblingTwinContractPath(kindId)
-  if (!twinContractPath || !existsSync(twinContractPath)) {
-    throw new Error(`runSession: no twin contract for kind '${kindId}' (looked for ${twinContractPath ?? '<none>'})`)
+  const twinContractPath = kindTwinContractPath(kindId, kindsDir)
+  if (!existsSync(twinContractPath)) {
+    throw new Error(`runSession: no twin contract for kind '${kindId}' (looked for ${twinContractPath})`)
   }
   const baseContract = await loadBakedContract(twinContractPath)
   const contract = enrichWithModel(baseContract, instance, kindDir(kindId, kindsDir))
