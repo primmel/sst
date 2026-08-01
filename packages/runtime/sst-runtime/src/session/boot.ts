@@ -27,15 +27,7 @@ import { loadPhysicsChain, type PhysicsChainDecl, type InstanceClassification } 
 import type { LoadedPackage } from '../package-loader.js'
 import type { Session, SessionOptions } from '../session.js'
 import { lookupKind } from '../kinds/registry.js'
-import { lookupKindBootStrategy } from '../kinds/boot-strategy.js'
-// Eagerly register all kind boot strategies — importing this module
-// populates KIND_BOOT_REGISTRY. Adding a new kind = adding one import
-// here + a new boot-strategy-<kind>.ts file. The dispatch below is
-// kind-agnostic.
-import '../kinds/boot-strategy-r60.js'
-import '../kinds/boot-strategy-r144.js'
-import '../kinds/boot-strategy-r91.js'
-import '../kinds/boot-strategy-r129.js'
+import { tryBootFromBehavior } from '../kinds/boot-from-behavior.js'
 import { buildTwinIo } from '../kinds/twin-io-builder.js'
 import type { TwinContract, InstrumentModel, ModelQuantity, DesignParameters, MetrologicalLimits } from '../twin-contract.js'
 import { parseMpeConfig } from '../certification/verdict.js'
@@ -264,15 +256,17 @@ export async function bootSession(
     physicsChain = loadPhysicsChain(chainPath)
   }
 
-  // 3. Dispatch to the kind's boot strategy — the kind-specific
-  //    instrument construction + world schema + TwinIo. The runtime
-  //    boot path is kind-agnostic from here on. Adding a new kind =
-  //    adding a boot-strategy-<kind>.ts file + one import above.
+  // 3. Boot the instrument via the universal plug-and-play path: load
+  //    the instance's behavior.js, call behavior.create(def, clock, seed),
+  //    assemble the /world schema from the kind's YAML/SDL/handlers.
+  //    v2 has no per-kind dispatch — every instance boots the same way.
+  //    The behavior.js IS the physics; there is no fallback. Adding a
+  //    new kind = authoring a kind package (data) + an instance package
+  //    (behavior.js). Zero runtime edits.
   const clock = new VirtualClock()
   const seed = opts.seed ?? 42
-  const strategy = lookupKindBootStrategy(kindId)
   const kd = kindDir(kindId, kindsDir)
-  const bootResult = await strategy.boot({
+  const bootResult = await tryBootFromBehavior({
     instance,
     clock,
     seed,
@@ -282,6 +276,12 @@ export async function bootSession(
     ...(physicsChain ? { physicsChain } : {}),
     ...(opts.sample ? { sample: opts.sample } : {}),
   })
+  if (bootResult === null) {
+    throw new Error(
+      `runSession: instance '${instance.manifest.id}' has no behavior.js (looked in ${instance.rootPath}). ` +
+      `v2 requires every instance package to ship a behavior.js implementing its kind's interface.d.ts.`,
+    )
+  }
   const { worldSchema, instrument, behavior } = bootResult
 
   // 4. Build the /twin schema (kind's baked contract, enriched with

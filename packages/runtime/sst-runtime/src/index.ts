@@ -2,7 +2,7 @@
 //
 // Owns ALL framework code: the physics engine, the dual-schema server,
 // the twin-schema generator, the console, the package loader, the
-// per-kind boot-strategy registry, the typed TwinDriver/WorldDriver,
+// universal plug-and-play boot path, the typed TwinDriver/WorldDriver,
 // and the scene context. This is the single import for every consumer
 // (bins, tests, the bench, external clients).
 
