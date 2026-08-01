@@ -30,7 +30,7 @@ import { existsSync } from 'node:fs'
 import { join, resolve, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { GraphQLSchema, GraphQLObjectType, GraphQLInputObjectType, GraphQLInputFieldConfig, GraphQLString, GraphQLFloat, GraphQLBoolean, GraphQLID, GraphQLNonNull, GraphQLList } from 'graphql'
-import type { GraphQLInputType } from 'graphql'
+import type { GraphQLInputType, GraphQLFieldConfig, GraphQLFieldConfigArgumentMap, GraphQLFieldConfigMap, GraphQLInputFieldConfigMap } from 'graphql'
 import { VirtualClock } from '../time.js'
 import { loadPackage, type LoadedPackage, type CompositionDeclaration } from '../package-loader.js'
 import { tryBootFromBehavior } from '../kinds/boot-from-behavior.js'
@@ -88,7 +88,7 @@ interface ComponentSession {
   twinSchema: GraphQLSchema                   // the component's own /twin schema
   twinIo: TwinIo
   contract: TwinContract
-  behavior: { handlers?: Record<string, (ctx: unknown, args: unknown) => void> } | undefined
+  behavior: import('../kinds/behavior-loader.js').LoadedBehavior | undefined
 }
 
 /** Boot one component as an in-process session (no HTTP server). Used by
@@ -207,7 +207,7 @@ function buildCompositeTwinSchema(
     })
   }
 
-  const queryFields: Record<string, { type: unknown; resolve: (args?: unknown) => unknown }> = {}
+  const queryFields: GraphQLFieldConfigMap<unknown, unknown> = {}
   for (const [target, source] of Object.entries(decomposition)) {
     const [componentId, registerName] = source.split('.')
     if (componentId === '<computed>' && registerName === 'state_rule') {
@@ -384,7 +384,7 @@ function buildCompositeWorldSchema(components: Map<string, ComponentSession>, cl
   })
 
   // The shared surface mutation fields + arg shapes (all runtime-graphql).
-  const SHARED_MUTATIONS = [
+  const SHARED_MUTATIONS: Array<{ name: string; args: GraphQLFieldConfigArgumentMap }> = [
     { name: 'advanceTime', args: { seconds: { type: new GraphQLNonNull(GraphQLFloat) } } },
     { name: 'setEnvironment', args: { conditions: { type: envInputType } } },
     { name: 'setClockMode', args: { mode: { type: new GraphQLNonNull(GraphQLString) } } },
@@ -399,7 +399,7 @@ function buildCompositeWorldSchema(components: Map<string, ComponentSession>, cl
   // component's kind-specific mutations. We learn each kind mutation's
   // arg names + types from the component's schema but rebuild with the
   // runtime's graphql scalars (avoids cross-realm GraphQLNonNull).
-  const unionFields: Record<string, { type: unknown; args: Record<string, { type: unknown }>; resolve: (src: { __componentId: string }, args: unknown) => unknown }> = {}
+  const unionFields: GraphQLFieldConfigMap<{ __componentId: string }, unknown> = {}
   for (const shared of SHARED_MUTATIONS) {
     unionFields[shared.name] = {
       type: worldStateType,
@@ -421,9 +421,9 @@ function buildCompositeWorldSchema(components: Map<string, ComponentSession>, cl
       // Rebuild args with the runtime's graphql scalars (walk the original
       // arg types and map to our scalars; complex input types fall back to
       // GraphQLString — the handler does its own coercion).
-      const argConfigs: Record<string, { type: unknown }> = {}
+      const argConfigs: GraphQLFieldConfigArgumentMap = {}
       for (const arg of field.args ?? []) {
-        argConfigs[arg.name] = { type: scalarTypeOf(arg.type) }
+        argConfigs[arg.name] = { type: scalarTypeOf(arg.type) as GraphQLInputType }
       }
       unionFields[fieldName] = {
         type: worldStateType,
@@ -445,7 +445,7 @@ function buildCompositeWorldSchema(components: Map<string, ComponentSession>, cl
   })
 
   // Mutation root fields: component(id: ID!) + bare aliases per id.
-  const mutationFields: Record<string, unknown> = {}
+  const mutationFields: GraphQLFieldConfigMap<unknown, unknown> = {}
   mutationFields.component = {
     type: componentMutationsType,
     args: { id: { type: new GraphQLNonNull(GraphQLID) } },

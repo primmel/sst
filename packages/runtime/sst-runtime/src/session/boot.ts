@@ -295,11 +295,12 @@ export async function bootSession(
   const contract = enrichWithModel(baseContract, instance, kindDir(kindId, kindsDir))
 
   // TwinIo: model-driven from contract serves + instrument surface +
-  // optional behavior.twinRegisters. Strategy-supplied twinIo is a
-  // legacy fallback only when the instrument is missing (shouldn't happen).
+  // optional behavior.twinRegisters. v2's universal path always produces
+  // an instrument, so the legacy fallback is unreachable; keep a clear
+  // error if it ever fires.
   const twinIo = instrument != null
     ? buildTwinIo(instrument, clock, contract, behavior)
-    : bootResult.twinIo
+    : (() => { throw new Error(`runSession: universal boot produced no instrument for '${instance.manifest.id}'`) })()
   if (!twinIo) {
     throw new Error(`runSession: no TwinIo for kind '${kindId}'`)
   }

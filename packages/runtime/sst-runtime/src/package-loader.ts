@@ -245,7 +245,7 @@ function validateCompositionSemantics(manifest: PackageManifest): void {
   const c = manifest.composition
   if (!c) return
   // Decomposition totality: every composite register sourced exactly once.
-  const seen = new Map<string, number>()
+  const seen = new Map<string, string>()
   for (const target of Object.keys(c.decomposition)) {
     const source = c.decomposition[target]!
     if (seen.has(source)) {
