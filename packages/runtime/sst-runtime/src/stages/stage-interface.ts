@@ -20,6 +20,9 @@ export interface TickContext {
 export interface Stage {
   /** Consume inputs from the port map; return outputs to add to the port map. */
   process(inputs: PortMap, ctx: TickContext): PortMap
+  /** The stage's ground-truth internals (OPTIONAL — the /world
+   *  GroundTruth read-back; the twin never sees this). */
+  state?(): Record<string, number>
 }
 
 export interface StageFactory<P = { coefficients: Record<string, number>; seed: number }> {

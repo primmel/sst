@@ -103,6 +103,17 @@ export class DataDrivenComposer {
   chainKeys(): string[] {
     return this.#chain.map((s) => s.decl.key)
   }
+
+  /** The chain's ground-truth internals, keyed by stage key (the
+   *  stages that expose state(); absent keys mean the stage models
+   *  nothing beyond its ports). */
+  stageStates(): Record<string, Record<string, number>> {
+    const out: Record<string, Record<string, number>> = {}
+    for (const { stage, decl } of this.#chain) {
+      if (stage.state) out[decl.key] = stage.state()
+    }
+    return out
+  }
 }
 
 // ── Chain resolution ──────────────────────────────────────────────────
@@ -191,7 +202,17 @@ function makeR60Mechanical(profileKey: string): StageFactory {
   return {
     stageKey: '',
     create({ coefficients: c, seed }: StageCreateParams): Stage {
-      const profile = CONSTRUCTION_PROFILES[profileKey] ?? CONSTRUCTION_PROFILES['compression']!
+      const base = CONSTRUCTION_PROFILES[profileKey] ?? CONSTRUCTION_PROFILES['compression']!
+      // The instance's coefficients OVERRIDE the profile's creep law
+      // (the creep-fail sample's whole point): creep_coefficient and
+      // creep_tau_s come from the package when present, else the
+      // profile's class values — the same coeff() discipline as the
+      // transduction/conditioning factories.
+      const profile = {
+        ...base,
+        creepCoefficient: coeff(c, 'creep_coefficient', base.creepCoefficient),
+        creepTauS: coeff(c, 'creep_tau_s', base.creepTauS),
+      }
       const stage = new MechanicalStage(profile, mulberry32(seed))
       const atCapacity = (c['capacity_kg'] ?? 500) * profile.complianceKgPerMm
       return {
@@ -199,6 +220,11 @@ function makeR60Mechanical(profileKey: string): StageFactory {
           stage.setLoad(inputs['applied_load_kg'] ?? 0)
           stage.advance(ctx.dtS)
           return { strain_mm: atCapacity > 0 ? stage.strainMm / atCapacity : 0 }
+        },
+        // The ground-truth read-back (the /world GroundTruth): the
+        // mechanical internals in millimetres, never the port fraction.
+        state(): Record<string, number> {
+          return { strainMm: stage.strainMm, creepMm: stage.creepMm }
         },
       }
     },
@@ -227,6 +253,10 @@ function makeR60Transduction(): StageFactory {
           stage.advance(ctx.dtS, ctx.env)
           const bridge = stage.output(inputs['strain_mm'] ?? 0, ctx.env)
           return { bridge_mV_per_V: bridge }
+        },
+        // The ground-truth read-back: the integrated thermal offset.
+        state(): Record<string, number> {
+          return { thermalOffsetMVperV: stage.thermalOffsetMVperV }
         },
       }
     },

@@ -16,6 +16,9 @@ export class MechanicalStage {
     return this.#elastic * (1 - h) + this.#creep
   }
 
+  /** The creep component alone (mm) — the ground-truth read-back. */
+  get creepMm(): number { return this.#creep }
+
   /** The applied load as set (ground truth — never the indication). */
   get appliedLoadKg(): number { return this.#lastLoad }
 

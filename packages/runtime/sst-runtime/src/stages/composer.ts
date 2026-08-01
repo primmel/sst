@@ -66,6 +66,12 @@ export interface ComposedInstrumentConfig {
     #lastIndication: Qty = { value: 0, unit: 'kg', kind: 'mass' }
     #servedAt = 0
     #dataDriven: DataDrivenComposer | null = null
+    // The warm-up arc (TODO.integration/06 gap 2): the cell powers on at
+    // 'warming' and settles to 'ready' at 5 × warm_up_tau_s — the same
+    // law as SimulatedInstrument (instrument.ts:95).
+    #state: 'warming' | 'ready' | 'fault' = 'warming'
+    #poweredAt: number
+    #warmUpTauS: number
 
     constructor(
       config: ComposedInstrumentConfig,
@@ -73,6 +79,8 @@ export interface ComposedInstrumentConfig {
       seed: number,
     ) {
       this.#clock = clock
+      this.#poweredAt = clock.now()
+      this.#warmUpTauS = config.coefficients['warm_up_tau_s'] ?? 60
       this.#fidelity = {
         servedOffsetKg: config.fidelity?.servedOffsetKg ?? 0,
         servedLagS: config.fidelity?.servedLagS ?? 0,
@@ -185,11 +193,14 @@ export interface ComposedInstrumentConfig {
     this.#env = { temperatureDegC: 20, humidityPercentRh: 50, pressureKPa: 101.325 }
     this.#lastIndication = { value: 0, unit: 'kg', kind: 'mass' }
     this.#servedAt = 0
+    this.#state = 'warming'
+    this.#poweredAt = this.#clock.now()
   }
 
   // ── Signal chain (called on each tick) ───────────────────────────────
 
   tick(dtS: number): void {
+    this.#settleWarmUp()
     let rawIndicationKg: number
     if (this.#dataDriven) {
       // Data-driven path: pipe through the chain declared in physics-chain.yaml
@@ -224,17 +235,42 @@ export interface ComposedInstrumentConfig {
 
   indication(): Qty { return this.#lastIndication }
   servedAt(): number { return this.#servedAt }
-  operationalState(): string { return this.#faulted ? 'fault' : 'ready' }
+  operationalState(): string {
+    // The arc settles lazily at read too — a consumer reading state
+    // before any tick (or right at the boundary) sees the truth.
+    this.#settleWarmUp()
+    return this.#faulted ? 'fault' : this.#state
+  }
+
+  #settleWarmUp(): void {
+    if (this.#state === 'warming' && this.#clock.now() - this.#poweredAt >= 5 * this.#warmUpTauS) this.#state = 'ready'
+  }
   environment(): Environment { return this.#env }
 
   // ── WorldInstrument (reality — /world only) ──────────────────────────
 
   groundTruth() {
+    // The mechanical internals, never stubs: the data-driven path reads
+    // them from the chain's stage states; the legacy path from the
+    // directly-wired stages. spanDriftFraction is honestly 0 — the
+    // R 60 conditioning stage models no span drift in this physics.
+    let strainMm = 0
+    let thermalOffsetMVperV = 0
+    if (this.#dataDriven) {
+      const states = this.#dataDriven.stageStates()
+      for (const state of Object.values(states)) {
+        if (typeof state['strainMm'] === 'number') strainMm = state['strainMm']
+        if (typeof state['thermalOffsetMVperV'] === 'number') thermalOffsetMVperV = state['thermalOffsetMVperV']
+      }
+    } else {
+      strainMm = this.#mech.strainMm
+      thermalOffsetMVperV = this.#trans.thermalOffsetMVperV
+    }
     return {
       appliedLoadKg: this.#appliedLoadKg,
-      strainMm: 0,
+      strainMm,
       spanDriftFraction: 0,
-      thermalOffsetMVperV: 0,
+      thermalOffsetMVperV,
       environment: this.#env,
       clockS: this.#clock.now(),
     }

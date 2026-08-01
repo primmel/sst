@@ -14,6 +14,9 @@ describe('TODO 15 — environmental-response layer', () => {
       filter_tau_s: 1.0, linearization_error_kg: 0.01,
       compensation_residual_per_degC: 0.0005, noise_sigma_kg: 0.005,
       thermal_hysteresis_per_degC: 0.00002, thermal_hysteresis_tau_s: 3600,
+      // pre-warmed fixture: the environmental layer is the subject, not
+      // the warm-up arc (gap 2's 5τ law lives in the composer).
+      warm_up_tau_s: 0,
     },
   }
 
