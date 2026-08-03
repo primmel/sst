@@ -34,6 +34,12 @@ export interface SimServerOptions {
    *  Absent ⇒ the world channel is fully open (the localhost dev
    *  posture). The bins wire this from SIM_WORLD_TOKEN. */
   worldToken?: string | undefined
+  /** CORS origins for browser clients (TODO.ops/29 — the hosted
+   *  platform's pages driving a LOCAL sim): comma-separated origins,
+   *  or '*' (the demo posture — a simulator serves no secrets).
+   *  The bins wire this from SST_CORS_ORIGINS; absent ⇒ no CORS
+   *  headers (same-origin tools only). */
+  corsOrigins?: string | undefined
   /** When present, adds a GET /twin/stream endpoint serving real-time
    *  Server-Sent Events for continuous twin indication monitoring.
    *  Clients connect with `EventSource('/twin/stream?targets=indication,state')`.
@@ -133,6 +139,31 @@ export async function createSimServer(opts: SimServerOptions): Promise<SimServer
 
   const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost')
+    // ── CORS (TODO.ops/29): a browser page hosted anywhere (the
+    // deployed platform on CloudFront, a docs demo) may drive a LOCAL
+    // sim. Preflight + response headers honor the configured origins. ──
+    const requestOrigin = typeof req.headers.origin === 'string' ? req.headers.origin : null
+    const corsAllow = opts.corsOrigins && requestOrigin
+      ? opts.corsOrigins === '*'
+        ? '*'
+        : opts.corsOrigins.split(',').map(o => o.trim()).includes(requestOrigin)
+          ? requestOrigin
+          : null
+      : null
+    if (corsAllow) {
+      res.setHeader('access-control-allow-origin', corsAllow)
+      res.setHeader('vary', 'origin')
+    }
+    if (req.method === 'OPTIONS') {
+      if (corsAllow) {
+        res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS')
+        res.setHeader('access-control-allow-headers', 'content-type, authorization')
+        res.writeHead(204)
+      } else {
+        res.writeHead(403, { 'content-type': 'text/plain' })
+      }
+      return res.end()
+    }
     // ── Real-time twin streaming (SSE) ──────────────────────────────
     // GET /twin/stream?targets=indication,state → text/event-stream
     // Emits one event per clock advance, carrying the twin values.

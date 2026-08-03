@@ -679,6 +679,7 @@ export async function composeSession(
     port,
     title: `${composite.manifest.title} (composite SST)`,
     worldToken: opts.worldToken,
+    corsOrigins: opts.corsOrigins,
     twinStream: {
       clock,
       targets: Object.keys(composition.decomposition),

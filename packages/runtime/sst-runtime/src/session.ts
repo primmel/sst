@@ -16,6 +16,9 @@ export interface SessionOptions {
   benchDir?: string
   /** Bearer token guarding /world mutations. */
   worldToken?: string
+  /** CORS origins for browser clients (TODO.ops/29): comma-separated
+   *  or '*' — the hosted platform driving a local sim. */
+  corsOrigins?: string
 }
 
 export interface Session {

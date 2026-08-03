@@ -88,6 +88,9 @@ switch (command) {
         // The /world mutation guard (TODO.v2/11): the env is the knob —
         // set ⇒ mutations need the bearer, queries stay open.
         worldToken: process.env.SIM_WORLD_TOKEN,
+        // CORS for browser clients driving a local sim (TODO.ops/29):
+        // comma-separated origins or '*' (the demo posture).
+        corsOrigins: process.env.SST_CORS_ORIGINS,
       }, libraryPaths())
       // --console: drive a readline loop against the booted session.
       // The grammar is load-cell-shaped (place load, remove load, …);

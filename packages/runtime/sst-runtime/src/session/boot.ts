@@ -327,6 +327,7 @@ export async function bootSession(
     port,
     title: `${instance.manifest.title} (SST)`,
     worldToken: opts.worldToken,
+    corsOrigins: opts.corsOrigins,
     ...(existsSync(benchDir) ? { benchDir } : {}),
     twinStream: {
       clock,
