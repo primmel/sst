@@ -47,7 +47,7 @@ describe('@primmel/sst-runtime — kind-interface registry', () => {
     ['primmel-sst-r91', 'speed'],
     ['primmel-sst-r129', 'dimensions'],
     ['primmel-sst-r144', 'gas-concentration'],
-    ['primmel-sst-sampling-line', 'sample-transport'],
+    ['primmel-sst-sampling-line', 'flow'],
   ] as const)('%s has active domain %s', (kindId, domain) => {
     expect(lookupKind(kindId).activeDomain).toBe(domain)
   })

@@ -1,0 +1,105 @@
+name: ci
+
+# The SST framework CI (TODO.FULL/07) — ported from the archived
+# sim-instruments monorepo CI, adjusted for the split: the instrument
+# packages live in oimlsmart/sst, so the boot legs check that repo out as
+# a sibling and point the sst-runtime CLI at it. The framework's own unit
+# tests are self-contained (baked twin contracts ship inside
+# @primmel/sst-runtime).
+
+on:
+  push: { branches: [v2] }
+  pull_request: {}
+  schedule: [cron: '23 3 * * 1']  # weekly, Monday 03:23 UTC (off-peak)
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  bench-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx astro build
+        working-directory: packages/shell/sst-bench
+      - run: test -f packages/shell/sst-bench/dist/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-dist
+          path: packages/shell/sst-bench/dist
+          retention-days: 7
+
+  instrument-boot:
+    # The real user experience, proven in CI: the sst-runtime CLI boots an
+    # instrument instance from the oimlsmart/sst checkout and serves all
+    # surfaces — plus a scripted IOS-style console session.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: oimlsmart/sst
+          path: instruments
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: install the instruments workspace (framework sibling expected)
+        working-directory: instruments
+        run: |
+          mkdir -p ../../primmel
+          ln -sfn "$GITHUB_WORKSPACE" ../../primmel/sst
+          npm ci
+      - name: boot acme-lc500 via the sst-runtime CLI and exercise it
+        run: |
+          npx tsx packages/runtime/sst-runtime/src/bin.ts run instruments/packages/instances/acme-lc500 5290 &
+          SIM_PID=$!
+          trap 'kill $SIM_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5290/ 2>/dev/null || true)
+            [ "$code" = "200" ] && break; sleep 1
+          done
+          [ "$code" = "200" ] || { echo "sim did not boot"; exit 1; }
+          curl -s -X POST http://localhost:5290/world -H 'content-type: application/json' \
+            -d '{"query":"mutation { placeLoad(massKg: 40) { groundTruth { appliedLoadKg } } }"}' | grep -q '"appliedLoadKg":40'
+          curl -s -X POST http://localhost:5290/twin -H 'content-type: application/json' \
+            -d '{"query":"{ indication { value unit } }"}' | grep -q '"unit":"kg"'
+          curl -s http://localhost:5290/world -H 'accept: text/html' | grep -qi graphiql
+          curl -s http://localhost:5290/twin -H 'accept: text/html' | grep -qi graphiql
+          echo "standalone boot + all surfaces OK"
+      - name: drive a scripted console session
+        run: |
+          printf 'enable\nplace load 40\nshow ground-truth\nadvance 5m\nshow clock\nexit\n' \
+            | npx tsx packages/runtime/sst-runtime/src/bin.ts run instruments/packages/instances/acme-lc500 5291 --console > /tmp/console.out 2>&1 &
+          CON_PID=$!
+          for i in $(seq 1 20); do grep -q '"clock": 300' /tmp/console.out 2>/dev/null && break; sleep 1; done
+          kill $CON_PID 2>/dev/null || true
+          grep -q '"appliedLoadKg": 40' /tmp/console.out
+          grep -q '"clock": 300' /tmp/console.out
+          echo "console session OK"
