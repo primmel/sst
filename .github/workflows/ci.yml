@@ -41,6 +41,8 @@ jobs:
         with: { path: x/primmel/sst }
       - uses: actions/checkout@v4
         with: { repository: primmel/primmel-ts, path: x/primmel/primmel-ts }
+      - uses: actions/checkout@v4
+        with: { repository: oimlsmart/sst, path: x/oimlsmart/sst-instruments }
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -58,6 +60,8 @@ jobs:
         with: { path: x/primmel/sst }
       - uses: actions/checkout@v4
         with: { repository: primmel/primmel-ts, path: x/primmel/primmel-ts }
+      - uses: actions/checkout@v4
+        with: { repository: oimlsmart/sst, path: x/oimlsmart/sst-instruments }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: x/primmel/sst/package-lock.json }
       - run: npm ci
@@ -93,7 +97,7 @@ jobs:
       - name: boot acme-lc500 via the sst-runtime CLI and exercise it
         working-directory: x/primmel/sst
         run: |
-          npx tsx packages/runtime/sst-runtime/src/bin.ts run ../oimlsmart/sst-instruments/packages/instances/acme-lc500 5290 &
+          npx tsx packages/runtime/sst-runtime/src/bin.ts run ../../oimlsmart/sst-instruments/packages/instances/acme-lc500 5290 &
           SIM_PID=$!
           trap 'kill $SIM_PID 2>/dev/null || true' EXIT
           for i in $(seq 1 30); do
@@ -112,7 +116,7 @@ jobs:
         working-directory: x/primmel/sst
         run: |
           printf 'enable\nplace load 40\nshow ground-truth\nadvance 5m\nshow clock\nexit\n' \
-            | npx tsx packages/runtime/sst-runtime/src/bin.ts run ../oimlsmart/sst-instruments/packages/instances/acme-lc500 5291 --console > /tmp/console.out 2>&1 &
+            | npx tsx packages/runtime/sst-runtime/src/bin.ts run ../../oimlsmart/sst-instruments/packages/instances/acme-lc500 5291 --console > /tmp/console.out 2>&1 &
           CON_PID=$!
           for i in $(seq 1 20); do grep -q '"clock": 300' /tmp/console.out 2>/dev/null && break; sleep 1; done
           kill $CON_PID 2>/dev/null || true
