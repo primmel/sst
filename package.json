@@ -2,7 +2,7 @@
   "name": "primmel-sst",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/runtime/*", "packages/shell"],
+  "workspaces": ["packages/runtime/*", "packages/shell/*"],
   "scripts": {
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
