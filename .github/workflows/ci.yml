@@ -24,6 +24,8 @@ jobs:
         with: { path: x/primmel/sst }
       - uses: actions/checkout@v4
         with: { repository: primmel/primmel-ts, path: x/primmel/primmel-ts }
+      - uses: actions/checkout@v4
+        with: { repository: oimlsmart/sst, path: x/oimlsmart/sst-instruments }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: x/primmel/sst/package-lock.json }
       - run: npm ci
