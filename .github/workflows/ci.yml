@@ -70,8 +70,8 @@ jobs:
         working-directory: x/primmel/sst
       - run: npm ci
         working-directory: x/oimlsmart/sst-instruments
-      - run: npx astro build
-        working-directory: x/primmel/sst/packages/shell/sst-bench
+      - run: npm run build --workspace @primmel/sst-bench
+        working-directory: x/primmel/sst
       - run: test -f packages/shell/sst-bench/dist/index.html
         working-directory: x/primmel/sst
       - uses: actions/upload-artifact@v4
