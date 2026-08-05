@@ -73,7 +73,7 @@ registerKind({
 
 registerKind({
   kindId: 'primmel-sst-sampling-line',
-  activeDomain: 'sample-transport',
+  activeDomain: 'flow',
   defaultPort: 5145,
   defaultScenario: 'healthy-line',
 })
