@@ -1,6 +1,9 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "**/*"],
+  "include": [
+    ".astro/types.d.ts",
+    "**/*"
+  ],
   "exclude": [
     "dist",
     "src/main.ts",
@@ -12,8 +15,15 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@core/*": ["../../core/src/*"],
-      "@/*": ["src/*"]
+      "@core/*": [
+        "../../core/src/*"
+      ],
+      "@/*": [
+        "src/*"
+      ],
+      "@kinds/*": [
+        "../../../../../oimlsmart/sst-instruments/packages/kinds/*"
+      ]
     },
     "jsx": "preserve",
     "useDefineForClassFields": true,

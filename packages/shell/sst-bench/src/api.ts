@@ -21,7 +21,7 @@
 import { LC500_CONTRACT } from '@primmel/sst-runtime/twin-contract'
 import { createTwinDriver, type TwinDriver } from '@primmel/sst-runtime/twin/driver'
 import { createWorldDriver, type WorldDriver } from '@primmel/sst-runtime/world/driver'
-import type { R60WorldMutations } from '../../../kinds/sst-r60/world-kind.d.ts'
+import type { R60WorldMutations } from '@kinds/sst-r60/world-kind.d.ts'
 
 export interface GroundTruth {
   appliedLoadKg: number

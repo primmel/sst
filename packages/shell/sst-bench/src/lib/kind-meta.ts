@@ -10,8 +10,8 @@
 // HUD reads hud_cells, etc.) is TODO 05's component-side refactor.
 
 import { readFile, readdir } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
-import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { resolveLibraryPaths } from '@primmel/sst-runtime/library-paths'
 import { parse } from 'yaml'
 
 // ── The bench.yaml schema (subset of the kind package's bench.yaml) ──
@@ -83,29 +83,12 @@ export interface KindBenchMeta {
 
 // ── Loader ────────────────────────────────────────────────────────────
 
-/** Walk up from cwd to find the repo root (the dir CONTAINING packages/). */
-function findRepoRoot(): string {
-  let dir = process.cwd()
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'packages', 'kinds'))) return dir
-    const parent = resolve(dir, '..')
-    if (parent === dir) break
-    dir = parent
-  }
-  return process.cwd()
-}
-
-let _repoRoot: string | undefined
-function repoRoot(): string {
-  if (!_repoRoot) _repoRoot = findRepoRoot()
-  return _repoRoot
-}
 
 /** Read a kind's bench.yaml by kind id (e.g. 'primmel-sst-r60').
  *  Walks packages/kinds/ and matches against the manifest's id field —
  *  directory names don't always equal manifest ids. Returns null if not found. */
 export async function loadKindBenchMeta(kindId: string): Promise<KindBenchMeta | null> {
-  const kindsDir = join(repoRoot(), 'packages', 'kinds')
+  const { kindsDir } = resolveLibraryPaths()
   const dir = await readdir(kindsDir).catch(() => [])
   for (const sub of dir) {
     const manifestPath = join(kindsDir, sub, 'package.sst.yaml')

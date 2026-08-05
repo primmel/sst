@@ -7,10 +7,11 @@
 // /kinds and /instances endpoints. Static-generation gives us a working
 // shell today with zero runtime dep.
 
-import { readdir, readFile, existsSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { readdir, readFile } from 'node:fs'
+import { join } from 'node:path'
 import { readFile as readFileAsync, readdir as readdirAsync } from 'node:fs/promises'
 import { parse } from 'yaml'
+import { resolveLibraryPaths } from '@primmel/sst-runtime/library-paths'
 
 export interface KindEntry {
   id: string
@@ -39,22 +40,12 @@ interface Manifest {
   samples?: string[]
 }
 
-/** Walk up from cwd to find the repo root (the dir containing packages/kinds/). */
-function findRepoRoot(): string {
-  let dir = process.cwd()
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'packages', 'kinds'))) return dir
-    const parent = resolve(dir, '..')
-    if (parent === dir) break
-    dir = parent
-  }
-  return process.cwd()
-}
-
-let _repoRoot: string | undefined
-function repoRoot(): string {
-  if (!_repoRoot) _repoRoot = findRepoRoot()
-  return _repoRoot
+// The library dirs come from the runtime's own resolver (SST_LIBRARY_PATH
+// env, then the sibling checkouts) — the split's one home for where the
+// kinds/instances live, never a second walk.
+function libraryDirs(): { kindsDir: string; instancesDir: string } {
+  const { kindsDir, instancesDir } = resolveLibraryPaths()
+  return { kindsDir, instancesDir }
 }
 
 async function readManifest(path: string): Promise<Manifest | null> {
@@ -66,8 +57,7 @@ async function readManifest(path: string): Promise<Manifest | null> {
 
 /** Walk packages/kinds/ and packages/instances/ and return the gallery data. */
 export async function buildCatalog(): Promise<{ kinds: KindEntry[]; instances: InstanceEntry[] }> {
-  const kindsDir = join(repoRoot(), 'packages', 'kinds')
-  const instancesDir = join(repoRoot(), 'packages', 'instances')
+  const { kindsDir, instancesDir } = libraryDirs()
 
   const kindIds = await readdirAsync(kindsDir).catch(() => [])
   const instanceIds = await readdirAsync(instancesDir).catch(() => [])
