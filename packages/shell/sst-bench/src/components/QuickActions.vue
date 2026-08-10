@@ -32,9 +32,11 @@ const groups: QAG[] = [
   {
     title: 'Load',
     actions: [
-      { label: 'Place 40 kg',  command: 'place load 40',   hint: 'A typical R 60 test load — about 8 % of capacity.',           variant: 'world' },
-      { label: 'Place 200 kg', command: 'place load 200',  hint: 'About 40 % of capacity — mid-range repeatability point.',     variant: 'world' },
-      { label: 'Remove load',  command: 'remove load',     hint: 'Clear the pan. Watch the creep recovery and hysteresis.',     variant: 'world' },
+      { label: 'Machine 40 kg',  command: 'lad apply 40',   hint: 'The force machine ramps to 40 kg (R 60-2, 2.7.2) — about 8 % of capacity; the cell feels the realized load.', variant: 'world' },
+      { label: 'Machine 200 kg', command: 'lad apply 200',  hint: 'The machine at 40 % of capacity — the mid-range repeatability point, shock-free.',                     variant: 'world' },
+      { label: 'Machine release', command: 'lad release',   hint: 'Ramp the machine back to the dead load. Watch the creep recovery and hysteresis.',                     variant: 'world' },
+      { label: 'Place 40 kg',  command: 'place load 40',   hint: 'The idealized deadweight placement — instantaneous and error-free (not how a lab loads a cell).',        variant: 'world' },
+      { label: 'Remove load',  command: 'remove load',     hint: 'Clear the pan directly (disengages the machine too).',                                                 variant: 'world' },
     ],
   },
   {
