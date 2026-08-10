@@ -45,6 +45,16 @@ export {
 } from './physics/stages/gas-transduction.js'
 export { GasConditioningStage, type GasConditioningParams, type ConditioningContext } from './physics/stages/gas-conditioning.js'
 
+// ── Framework: bench devices ─────────────────────────────────────────
+// The load application device (R 60-2, 2.7.2's force-generating system):
+// the laboratory's force machine, a bench peer of the instrument.
+export {
+  LoadApplicationDevice,
+  type LadSpec,
+  type LadState,
+  type LadPhase,
+} from './physics/devices/load-application-device.js'
+
 // ── Framework: instruments ───────────────────────────────────────────
 export {
   SimulatedInstrument, LC500_GOOD, LC500_PAIRED_DIAL, REFERENCE_ENVIRONMENT,

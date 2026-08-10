@@ -3,11 +3,13 @@
 // `show indication` answers from /twin, `show ground-truth` from /world.
 
 export type ConsoleAction =
-  | { kind: 'show'; target: 'indication' | 'ground-truth' | 'state' | 'environment' | 'clock' | 'scenarios' | 'profiles' | 'fidelity' }
+  | { kind: 'show'; target: 'indication' | 'ground-truth' | 'state' | 'environment' | 'clock' | 'scenarios' | 'profiles' | 'fidelity' | 'lad' }
   | { kind: 'enable' }
   | { kind: 'disable' }
   | { kind: 'placeLoad'; massKg: number }
   | { kind: 'removeLoad' }
+  | { kind: 'ladApply'; massKg: number; rateKgPerS?: number }
+  | { kind: 'ladRelease'; rateKgPerS?: number }
   | { kind: 'setEnvironment'; field: 'temperatureDegC' | 'humidityPercentRh' | 'pressureKPa'; value: number }
   | { kind: 'playProfile'; id: string }
   | { kind: 'advance'; seconds: number }
@@ -26,7 +28,7 @@ export type ConsoleAction =
 const DURATION = /^(\d+(?:\.\d+)?)(s|m|h|d)$/
 const DURATION_MULT: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 }
 
-const SHOW_TARGETS = ['indication', 'ground-truth', 'state', 'environment', 'clock', 'scenarios', 'profiles', 'fidelity'] as const
+const SHOW_TARGETS = ['indication', 'ground-truth', 'state', 'environment', 'clock', 'scenarios', 'profiles', 'fidelity', 'lad'] as const
 
 export function parseCommand(raw: string): ConsoleAction {
   const line = raw.trim().toLowerCase().replace(/\s+/g, ' ')
@@ -48,6 +50,13 @@ export function parseCommand(raw: string): ConsoleAction {
   m = /^place load (\d+(?:\.\d+)?)(?:\s*kg)?$/.exec(line)
   if (m) return { kind: 'placeLoad', massKg: Number(m[1]) }
   if (line === 'remove load') return { kind: 'removeLoad' }
+
+  // The load application device (R 60-2, 2.7.2 — the force-generating
+  // system): a ramped, machine-error-bearing load, never a free weight.
+  m = /^lad apply (\d+(?:\.\d+)?)(?:\s*kg)?(?:\s+at\s+(\d+(?:\.\d+)?)(?:\s*kg\/?s)?)?$/.exec(line)
+  if (m) return { kind: 'ladApply', massKg: Number(m[1]), ...(m[2] !== undefined ? { rateKgPerS: Number(m[2]) } : {}) }
+  m = /^lad release(?:\s+at\s+(\d+(?:\.\d+)?)(?:\s*kg\/?s)?)?$/.exec(line)
+  if (m) return { kind: 'ladRelease', ...(m[1] !== undefined ? { rateKgPerS: Number(m[1]) } : {}) }
 
   m = /^set temperature (-?\d+(?:\.\d+)?)(?:\s*°?c)?$/.exec(line)
   if (m) return { kind: 'setEnvironment', field: 'temperatureDegC', value: Number(m[1]) }
@@ -81,17 +90,18 @@ export function parseCommand(raw: string): ConsoleAction {
  *  IOS discipline (a teaching device, not a security boundary: every
  *  command reaches /world anyway; the mode teaches the posture). */
 export const PRIVILEGED_KINDS: ReadonlySet<ConsoleAction['kind']> = new Set([
-  'placeLoad', 'removeLoad', 'setEnvironment', 'playProfile', 'advance',
+  'placeLoad', 'removeLoad', 'ladApply', 'ladRelease', 'setEnvironment', 'playProfile', 'advance',
   'setClockMode', 'scenario', 'setFidelity', 'setThermalHysteresis', 'fidelityReset', 'reset',
 ])
 
 export const HELP_TEXT = `user exec:
   show indication|state|environment|clock   the instrument's legal view (/twin)
-  show ground-truth|fidelity                reality (/world)
+  show ground-truth|fidelity|lad             reality (/world)
   show scenarios|profiles                   the registries
   enable                                    enter privileged mode
 privileged:
   place load <kg> | remove load
+  lad apply <kg> [at <kg/s>] | lad release [at <kg/s>]   the force machine (R 60-2, 2.7.2)
   set temperature <°C> | set humidity <%rh> | set pressure <kPa>
   play profile <id>                         a D 11 chamber program
   advance <n>s|m|h|d                        virtual time
