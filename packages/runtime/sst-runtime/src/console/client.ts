@@ -92,9 +92,17 @@ export function httpConsoleIo(baseUrl: string, write: (t: string) => void, world
     async query(channel, query) {
       const headers: Record<string, string> = { 'content-type': 'application/json' }
       if (worldToken && channel === '/world') headers['authorization'] = `Bearer ${worldToken}`
-      const res = await fetch(`${baseUrl}${channel}`, {
-        method: 'POST', headers, body: JSON.stringify({ query }),
-      })
+      let res: Response
+      try {
+        res = await fetch(`${baseUrl}${channel}`, {
+          method: 'POST', headers, body: JSON.stringify({ query }),
+        })
+      } catch (e) {
+        // A network failure arrives as a bare TypeError ('fetch failed'
+        // on node, 'Load failed' on Safari, 'Failed to fetch' on
+        // Chrome) — say what it means and what to do instead.
+        throw new Error(`sim unreachable at ${baseUrl}${channel} — is the sim running? (boot one with: npm start in the oimlsmart/sst checkout) [${e instanceof Error ? e.message : String(e)}]`)
+      }
       return res.json()
     },
   }

@@ -360,7 +360,10 @@ async function run(line: string, opts: { echo?: boolean; elevate?: boolean } = {
     }
     bench.privileged = state.privileged
   } finally {
-    state.privileged = wasPrivileged
+    // Restore ONLY for an elevated caller (quick actions, tour): a typed
+    // 'enable'/'disable' is MEANT to change the mode — reverting it made
+    // typed enable a no-op and the next privileged command failed.
+    if (opts.elevate) state.privileged = wasPrivileged
     bench.privileged = state.privileged
   }
 }
