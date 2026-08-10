@@ -339,11 +339,21 @@ Each kind's `world-kind.yaml` declares its actuation vocabulary. For R 60 (load 
 extend type Mutation {
   placeLoad(massKg: Float!): WorldState!
   removeLoad: WorldState!
+  # The load application device (R 60-2, 2.7.2 — the force-generating
+  # system): the machine ramps to the NOMINAL setpoint (shock-free,
+  # 2.7.3.3); the cell feels the REALIZED load (the machine's class
+  # error + per-application repeatability). placeLoad stays as the
+  # idealized deadweight path.
+  ladApply(loadKg: Float!, rateKgPerS: Float): WorldState!
+  ladRelease(rateKgPerS: Float): WorldState!
+  ladConfigure(capacityKg: Float, classFraction: Float, repeatabilityFraction: Float, defaultRateKgPerS: Float): WorldState!
   setFidelity(servedOffsetKg: Float, servedLagS: Float): WorldState!
   fidelityReset: WorldState!
   setThermalHysteresis(perDegC: Float!, tauS: Float): WorldState!
 }
 ```
+
+The device's state rides the kind's `GroundTruth` extension (`lad: LoadDeviceState` — nominal target, ramp position, realized load, calibration state), /world only.
 
 See the per-kind table in `specs/10-twin-driver.md` §"Per-kind driver surfaces".
 
