@@ -15,6 +15,7 @@
     "./twin/introspect": "./src/twin/introspect.ts",
     "./stages/composer": "./src/stages/composer.ts",
     "./stages/data-driven": "./src/stages/data-driven.ts",
+    "./physics/devices/load-application-device": "./src/physics/devices/load-application-device.ts",
     "./world/driver": "./src/world/driver.ts",
     "./world/types": "./src/world/types.ts",
     "./scene/context": "./src/scene/context.ts",

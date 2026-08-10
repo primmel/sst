@@ -22,6 +22,11 @@ import { mulberry32, normal as normalRng } from '../physics/rng.js'
 import type { Qty } from '../physics/quantity.js'
 import type { Environment } from '../instrument.js'
 import { DataDrivenComposer, type PhysicsChainDecl } from './data-driven.js'
+import {
+  LoadApplicationDevice,
+  type LadSpec,
+  type LadState,
+} from '../physics/devices/load-application-device.js'
 
 // ── The composed instrument ───────────────────────────────────────────
 
@@ -66,6 +71,14 @@ export interface ComposedInstrumentConfig {
     #lastIndication: Qty = { value: 0, unit: 'kg', kind: 'mass' }
     #servedAt = 0
     #dataDriven: DataDrivenComposer | null = null
+    // The bench's load application device (R 60-2, 2.7.2 — the
+    // force-generating system; see physics/devices/load-application-device.ts).
+    // Null until configured (coefficients lad_* or configureLad()); while
+    // engaged it OWNS #appliedLoadKg through its ramp.
+    #lad: LoadApplicationDevice | null = null
+    #rng: () => number
+    /** The instance's raw coefficients, kept for the LAD's lad_* defaults. */
+    #ladCoefficients: Record<string, number>
     // The warm-up arc (TODO.integration/06 gap 2): the cell powers on at
     // 'warming' and settles to 'ready' at 5 × warm_up_tau_s — the same
     // law as SimulatedInstrument (instrument.ts:95).
@@ -81,9 +94,17 @@ export interface ComposedInstrumentConfig {
       this.#clock = clock
       this.#poweredAt = clock.now()
       this.#warmUpTauS = config.coefficients['warm_up_tau_s'] ?? 60
+      this.#rng = mulberry32(seed + 7)
+      this.#ladCoefficients = config.coefficients
       this.#fidelity = {
         servedOffsetKg: config.fidelity?.servedOffsetKg ?? 0,
         servedLagS: config.fidelity?.servedLagS ?? 0,
+      }
+      // The bench's force machine: present from boot when the instance
+      // declares it (coefficients lad_capacity_kg + class/repeatability/
+      // rate); otherwise configureLad() creates it on demand.
+      if (typeof config.coefficients['lad_capacity_kg'] === 'number') {
+        this.configureLad({})
       }
       // Self-subscribe to clock advances — the signal chain ticks on
       // every advance, just like SimulatedInstrument (instrument.ts:87)
@@ -157,8 +178,48 @@ export interface ComposedInstrumentConfig {
 
   // ── WorldInstrument interface ────────────────────────────────────────
 
-  placeMass(massKg: number): void { this.#appliedLoadKg = massKg }
-  removeMass(): void { this.#appliedLoadKg = 0 }
+  placeMass(massKg: number): void { this.#lad?.disengage(); this.#appliedLoadKg = massKg }
+  removeMass(): void { this.#lad?.disengage(); this.#appliedLoadKg = 0 }
+
+  // ── The load application device (R 60-2, 2.7.2) ─────────────────────
+  // The laboratory's force-generating system: ramps the load at a
+  // controlled rate (no shock, 2.7.3.3), realizes it with the machine's
+  // systematic class error + per-application repeatability, and OWNS the
+  // applied load while engaged. The direct placeMass/removeMass path
+  // (idealized deadweight placement) disengages it.
+
+  /** Create or reconfigure the device. Explicit spec fields win over the
+   *  instance's coefficient defaults (lad_capacity_kg,
+   *  lad_class_fraction, lad_repeatability_fraction,
+   *  lad_default_rate_kg_per_s), which win over the built-in defaults
+   *  (3× the cell's capacity, ISO 376 class 0.5 analog, 0.02 %, 25 kg/s). */
+  configureLad(spec: Partial<LadSpec>): void {
+    const c = this.#ladCoefficients
+    const merged: LadSpec = {
+      capacityKg: spec.capacityKg ?? c['lad_capacity_kg'] ?? 3 * (c['capacity_kg'] ?? 500),
+      classFraction: spec.classFraction ?? c['lad_class_fraction'] ?? 0.0005,
+      repeatabilityFraction: spec.repeatabilityFraction ?? c['lad_repeatability_fraction'] ?? 0.0002,
+      defaultRateKgPerS: spec.defaultRateKgPerS ?? c['lad_default_rate_kg_per_s'] ?? 25,
+    }
+    this.#lad = new LoadApplicationDevice(merged, this.#rng)
+  }
+
+  /** Ramp toward the nominal target load (kg). */
+  ladApply(targetKg: number, rateKgPerS?: number): void {
+    if (!this.#lad) this.configureLad({})
+    this.#lad!.apply(targetKg, rateKgPerS)
+  }
+
+  /** Ramp back to the dead load. */
+  ladRelease(rateKgPerS?: number): void {
+    if (!this.#lad) this.configureLad({})
+    this.#lad!.release(rateKgPerS)
+  }
+
+  /** The device's state (null when the bench has no device configured). */
+  ladState(): LadState | null {
+    return this.#lad ? this.#lad.state() : null
+  }
   setEnvironment(e: Partial<Environment>): void { this.#env = { ...this.#env, ...e } }
   setFidelity(knobs: { servedOffsetKg?: number; servedLagS?: number }): void {
     if (knobs.servedOffsetKg != null) this.#fidelity.servedOffsetKg = knobs.servedOffsetKg
@@ -190,6 +251,7 @@ export interface ComposedInstrumentConfig {
   }
   reset(): void {
     this.#appliedLoadKg = 0
+    this.#lad?.disengage()
     this.#env = { temperatureDegC: 20, humidityPercentRh: 50, pressureKPa: 101.325 }
     this.#lastIndication = { value: 0, unit: 'kg', kind: 'mass' }
     this.#servedAt = 0
@@ -201,6 +263,15 @@ export interface ComposedInstrumentConfig {
 
   tick(dtS: number): void {
     this.#settleWarmUp()
+    // The engaged force machine drives the applied load through its ramp
+    // (the cell feels the machine's REALIZED load, never the nominal one).
+    if (this.#lad) {
+      const ladState = this.#lad.state()
+      if (ladState.engaged) {
+        this.#lad.advance(dtS)
+        this.#appliedLoadKg = this.#lad.actualKg()
+      }
+    }
     let rawIndicationKg: number
     if (this.#dataDriven) {
       // Data-driven path: pipe through the chain declared in physics-chain.yaml
@@ -273,6 +344,8 @@ export interface ComposedInstrumentConfig {
       thermalOffsetMVperV,
       environment: this.#env,
       clockS: this.#clock.now(),
+      // The bench's force machine (null when the instance declares none).
+      lad: this.ladState(),
     }
   }
 }

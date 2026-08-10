@@ -54,10 +54,13 @@ export async function execute(action: ConsoleAction, io: ConsoleIo, state: Conso
       if (action.target === 'scenarios') return fmt(await io.query('/world', `{ scenarios { name description } }`))
       if (action.target === 'profiles') return fmt(await io.query('/world', `{ profiles { id standard } }`))
       if (action.target === 'fidelity') return fmt(await io.query('/world', `{ groundTruth { appliedLoadKg clockS } }`))
+      if (action.target === 'lad') return fmt(await io.query('/world', `{ groundTruth { lad { engaged phase targetKg nominalKg actualKg rateKgPerS capacityKg classFraction calErrorFraction } } }`))
       return fmt(await io.query('/world', `{ worldState { clock mode } }`))
     }
     case 'placeLoad': return fmt(await io.query('/world', `mutation { placeLoad(massKg: ${action.massKg}) { groundTruth { appliedLoadKg } } }`))
     case 'removeLoad': return fmt(await io.query('/world', `mutation { removeLoad { groundTruth { appliedLoadKg } } }`))
+    case 'ladApply': return fmt(await io.query('/world', `mutation { ladApply(loadKg: ${action.massKg}${action.rateKgPerS !== undefined ? `, rateKgPerS: ${action.rateKgPerS}` : ''}) { groundTruth { lad { phase nominalKg actualKg targetKg } } } }`))
+    case 'ladRelease': return fmt(await io.query('/world', `mutation { ladRelease(${action.rateKgPerS !== undefined ? `rateKgPerS: ${action.rateKgPerS}` : ''}) { groundTruth { lad { phase nominalKg actualKg } } } }`))
     case 'setEnvironment': return fmt(await io.query('/world', `mutation { setEnvironment(conditions: { ${action.field}: ${action.value} }) { groundTruth { environment { temperatureDegC humidityPercentRh pressureKPa } } } }`))
     case 'playProfile': return fmt(await io.query('/world', `mutation { playProfile(profile: "${action.id}") { clock } }`))
     case 'advance': return fmt(await io.query('/world', `mutation { advanceTime(seconds: ${action.seconds}) { clock } }`))
