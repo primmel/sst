@@ -1,6 +1,8 @@
 // lib.ts — the test suite's one handle on the instrument library
 // (the split, TODO.integration/24): kinds + instances resolve through
-// src/library-paths.ts (SST_LIBRARY_PATH → sibling → in-repo).
+// src/library-paths.ts. The library is DECLARED: the package tests
+// require SST_LIBRARY_PATH (CI sets it to the workflow's checkout
+// position); the resolution errors honestly when it is unset.
 import { resolve } from 'node:path'
 import { resolveLibraryPaths } from '../src/library-paths.js'
 

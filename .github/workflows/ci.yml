@@ -54,8 +54,12 @@ jobs:
         working-directory: x/primmel/sst
       - run: npm ci
         working-directory: x/oimlsmart/sst-instruments
+      # The library's position is DECLARED (never probed): the package
+      # tests resolve the kinds + instances through SST_LIBRARY_PATH.
       - run: npm test
         working-directory: x/primmel/sst
+        env:
+          SST_LIBRARY_PATH: ${{ github.workspace }}/x/oimlsmart/sst-instruments
 
   bench-build:
     runs-on: ubuntu-latest
@@ -117,6 +121,15 @@ jobs:
             -d '{"query":"{ indication { value unit } }"}' | grep -q '"unit":"kg"'
           curl -s http://localhost:5290/world -H 'accept: text/html' | grep -qi graphiql
           curl -s http://localhost:5290/twin -H 'accept: text/html' | grep -qi graphiql
+          # The load application device (R 60-2, 2.7.2): the machine ramps
+          # to the nominal 40 kg; the realized load lands within its class
+          # envelope (±(class + 4×repeatability) ≈ ±0.052 kg at 40 kg).
+          curl -s -X POST http://localhost:5290/world -H 'content-type: application/json' \
+            -d '{"query":"mutation { ladApply(loadKg: 40, rateKgPerS: 40) { clock } }"}' > /dev/null
+          curl -s -X POST http://localhost:5290/world -H 'content-type: application/json' \
+            -d '{"query":"mutation { advanceTime(seconds: 5) { groundTruth { appliedLoadKg lad { phase } } } }"}' > /tmp/lad.json
+          grep -q '"phase":"holding"' /tmp/lad.json
+          node -e "const g=require('/tmp/lad.json').data.advanceTime.groundTruth; if (Math.abs(g.appliedLoadKg-40) > 0.1) { console.error('realized load out of envelope:', g.appliedLoadKg); process.exit(1) }"
           echo "standalone boot + all surfaces OK"
       - name: drive a scripted console session
         working-directory: x/primmel/sst
