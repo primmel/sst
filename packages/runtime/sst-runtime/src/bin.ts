@@ -10,9 +10,10 @@ import { resolveLibraryPaths } from './library-paths.js'
 import { listKinds } from './kinds/registry.js'
 import { runSession } from './session.js'
 
-/** The instrument library's location — one resolution (src/library-paths.ts). */
-function libraryPaths(): { kindsDir: string; instancesDir: string } {
-  const lib = resolveLibraryPaths()
+/** The instrument library's location — one resolution (src/library-paths.ts).
+ *  A `run <instance>` boot resolves the instance's own tree first. */
+function libraryPaths(instancePath?: string): { kindsDir: string; instancesDir: string } {
+  const lib = resolveLibraryPaths({ instancePath })
   return { kindsDir: lib.kindsDir, instancesDir: lib.instancesDir }
 }
 import { httpConsoleIo } from './console/client.js'
@@ -91,7 +92,7 @@ switch (command) {
         // CORS for browser clients driving a local sim (TODO.ops/29):
         // comma-separated origins or '*' (the demo posture).
         corsOrigins: process.env.SST_CORS_ORIGINS,
-      }, libraryPaths())
+      }, libraryPaths(target))
       // --console: drive a readline loop against the booted session.
       // The grammar is load-cell-shaped (place load, remove load, …);
       // other kinds drive via /world directly. See CLAUDE.md.

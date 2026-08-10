@@ -1,7 +1,7 @@
 // certification/cnml-export.ts — export an R 60-2 test report as a
 // CNML (Certificat Numérique de Métrologie Légale) pre-signing JSON
 // document. The output is consumed by the digital-certificates repo
-// (~/src/oimlsmart/digital-certificates/) which signs it with XMLDSig
+// (the oimlsmart/digital-certificates repo) which signs it with XMLDSig
 // and issues the final machine-verifiable certificate.
 //
 // The CNML bridge: sim-instruments produces the test data (conformance
