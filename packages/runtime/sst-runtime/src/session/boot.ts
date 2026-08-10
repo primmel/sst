@@ -37,12 +37,21 @@ import { parseMpeConfig } from '../certification/verdict.js'
 // boot.ts lives at packages/runtime/sst-runtime/src/session/boot.ts.
 // SESSION_DIR = .../session; REPO_ROOT climbs 5 levels from there.
 const SESSION_DIR = resolve(fileURLToPath(import.meta.url), '..')
-import { resolveLibraryPaths } from '../library-paths.js'
+import { resolveLibraryPaths, type LibraryPaths } from '../library-paths.js'
 
 const REPO_ROOT = resolve(SESSION_DIR, '..', '..', '..', '..', '..')
-const LIBRARY = resolveLibraryPaths()
-const DEFAULT_KINDS_DIR = LIBRARY.kindsDir
-const DEFAULT_INSTANCES_DIR = LIBRARY.instancesDir
+// The default library resolves LAZILY (never at module load): importing
+// the session machinery (the CLI's validate, the test suites) must not
+// demand a library declaration — only an actual instrument boot does.
+let defaultLibrary: LibraryPaths | null = null
+function defaultKindsDir(): string {
+  defaultLibrary ??= resolveLibraryPaths()
+  return defaultLibrary.kindsDir
+}
+function defaultInstancesDir(): string {
+  defaultLibrary ??= resolveLibraryPaths()
+  return defaultLibrary.instancesDir
+}
 
 function kindDir(kindId: string, packagesDir: string): string {
   // 'primmel-sst-r60' → 'sst-r60'
@@ -243,7 +252,7 @@ export async function bootSession(
 
   const kindId = instance.manifest.kind
   const kind = lookupKind(kindId)
-  const kindsDir = paths.kindsDir ?? DEFAULT_KINDS_DIR
+  const kindsDir = paths.kindsDir ?? defaultKindsDir()
   // paths.instancesDir reserved for future use (instance-package
   // discovery from a non-default directory).
 
@@ -364,4 +373,4 @@ function readTwinTarget(
   return reader ? reader() : null
 }
 
-export const __test__ = { flattenCoefficients, kindDir, DEFAULT_KINDS_DIR, DEFAULT_INSTANCES_DIR }
+export const __test__ = { flattenCoefficients, kindDir, defaultKindsDir, defaultInstancesDir }
