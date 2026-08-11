@@ -16,6 +16,8 @@
     "./stages/composer": "./src/stages/composer.ts",
     "./stages/data-driven": "./src/stages/data-driven.ts",
     "./physics/devices/load-application-device": "./src/physics/devices/load-application-device.ts",
+    "./physics/devices/climatic-chamber": "./src/physics/devices/climatic-chamber.ts",
+    "./physics/devices/indicating-instrument": "./src/physics/devices/indicating-instrument.ts",
     "./world/driver": "./src/world/driver.ts",
     "./world/types": "./src/world/types.ts",
     "./scene/context": "./src/scene/context.ts",

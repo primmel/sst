@@ -280,7 +280,10 @@ function makeR60Conditioning(stack: 'digital' | 'digital-processing' | 'analog-a
       return {
         process(inputs: PortMap, ctx: TickContext): PortMap {
           const out = stage.process(inputs['bridge_mV_per_V'] ?? 0, ctx.dtS, ctx.env, kgPerMVperV)
-          return { indication_kg: out.indicationKg }
+          // The bridge rides along so a bench indicating instrument (the
+          // analogue-passive pairing, R 60-2, 2.7.2) can form the reading
+          // downstream of the chain.
+          return { ...inputs, indication_kg: out.indicationKg }
         },
       }
     },
