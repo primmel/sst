@@ -54,6 +54,22 @@ export {
   type LadState,
   type LadPhase,
 } from './physics/devices/load-application-device.js'
+// The climatic chamber (R 60-3, 4.10.3/4.10.4): the environmental
+// equipment — ramp, overshoot, stability; nominal setpoint vs realized
+// climate.
+export {
+  ClimaticChamber,
+  type ChamberSpec,
+  type ChamberState,
+  type ChamberPhase,
+} from './physics/devices/climatic-chamber.js'
+// The indicating instrument (R 60-2, 2.7.2's second half): forms the
+// reading from an analogue-passive cell's bridge signal.
+export {
+  IndicatingInstrument,
+  type IndicatorSpec,
+  type IndicatorState,
+} from './physics/devices/indicating-instrument.js'
 
 // ── Framework: instruments ───────────────────────────────────────────
 export {
