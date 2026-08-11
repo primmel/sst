@@ -90,8 +90,10 @@ switch (command) {
         // set ⇒ mutations need the bearer, queries stay open.
         worldToken: process.env.SIM_WORLD_TOKEN,
         // CORS for browser clients driving a local sim (TODO.ops/29):
-        // comma-separated origins or '*' (the demo posture).
-        corsOrigins: process.env.SST_CORS_ORIGINS,
+        // comma-separated origins or '*' (the demo posture). Default:
+        // the localhost pair (any port) — a local sim is a development
+        // and training tool; set the env to lock origins down.
+        corsOrigins: process.env.SST_CORS_ORIGINS ?? 'http://localhost,http://127.0.0.1',
       }, libraryPaths(target))
       // --console: drive a readline loop against the booted session.
       // The grammar is load-cell-shaped (place load, remove load, …);

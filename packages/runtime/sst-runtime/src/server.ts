@@ -37,8 +37,11 @@ export interface SimServerOptions {
   /** CORS origins for browser clients (TODO.ops/29 — the hosted
    *  platform's pages driving a LOCAL sim): comma-separated origins,
    *  or '*' (the demo posture — a simulator serves no secrets).
-   *  The bins wire this from SST_CORS_ORIGINS; absent ⇒ no CORS
-   *  headers (same-origin tools only). */
+   *  An entry WITHOUT a port ('http://localhost') matches any port on
+   *  that host. The bins wire this from SST_CORS_ORIGINS and default to
+   *  the localhost pair when unset — a local sim is a development and
+   *  training tool, so browser pages on any local port may drive it;
+   *  set the env explicitly to lock origins down. */
   corsOrigins?: string | undefined
   /** When present, adds a GET /twin/stream endpoint serving real-time
    *  Server-Sent Events for continuous twin indication monitoring.
@@ -58,6 +61,32 @@ const MIME: Record<string, string> = {
 }
 
 const TWIN_PLACEHOLDER_MESSAGE = 'twin schema not generated/baked — pass twinSchema to createSimServer (see docs §6/§9)'
+
+/** The CORS origin matcher: an exact entry matches the request origin; an
+ *  entry WITHOUT a port ('http://localhost') matches any port on that
+ *  host — the local-dev default lists the localhost pair this way so any
+ *  dev-server port can drive a local sim. */
+function corsOriginAllowed(configured: string, requestOrigin: string): boolean {
+  let parsed: URL | null = null
+  try {
+    parsed = new URL(requestOrigin)
+  } catch {
+    return false
+  }
+  for (const raw of configured.split(',')) {
+    const entry = raw.trim()
+    if (!entry) continue
+    if (entry === requestOrigin) return true
+    // Port-less entry: scheme + host match, any port.
+    if (!/:\d+$/.test(entry)) {
+      try {
+        const e = new URL(entry)
+        if (e.protocol === parsed.protocol && e.hostname === parsed.hostname) return true
+      } catch { /* a malformed entry never matches */ }
+    }
+  }
+  return false
+}
 
 /** The operation type the request will execute, honoring operationName
  *  the way graphql-js selects it (absent → the single operation). */
@@ -146,7 +175,7 @@ export async function createSimServer(opts: SimServerOptions): Promise<SimServer
     const corsAllow = opts.corsOrigins && requestOrigin
       ? opts.corsOrigins === '*'
         ? '*'
-        : opts.corsOrigins.split(',').map(o => o.trim()).includes(requestOrigin)
+        : corsOriginAllowed(opts.corsOrigins, requestOrigin)
           ? requestOrigin
           : null
       : null
