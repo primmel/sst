@@ -7,12 +7,27 @@
 // (a multi-component instrument's indication_co / indication_nox …)
 // binds to a register reader supplied by the caller — a declared serve
 // the instrument cannot answer fails generation loudly.
+//
+// THE SIGNED-SERVE POSTURE (spec §12's signed-serve section, opt-in):
+// when TwinIo.signing is set, every quantity serve signs at serve time
+// (twin/serve-signing.ts — the smart platform's envelope contract):
+// ServedQuantity carries servedAt as a canonical-ISO String and the
+// `signature` scalar member (the snake_case envelope block, opaque to
+// graphql — the consumer's document selects it without a subselection).
+// State + environmental serves carry NO envelope (the channel's named
+// limit — a scalar state selection has nothing to bind). Undeclared
+// signing = the legacy face, byte-unchanged.
 import { createSchema } from 'graphql-yoga'
-import type { GraphQLSchema } from 'graphql'
+import { GraphQLScalarType, type GraphQLSchema } from 'graphql'
 import type { VirtualClock } from './time.js'
 import type { Qty } from './physics/quantity.js'
 import type { Environment } from './instrument.js'
 import type { TwinContract, TwinOperation, InstrumentModel } from './twin-contract.js'
+import {
+  signedQuantityReader,
+  type RawServedQuantity,
+  type ServeSigning,
+} from './twin/serve-signing.js'
 
 /** The instrument's legal view — what a real instrument could legally
  *  answer (law 1). Any instrument family satisfying this shape can host
@@ -35,7 +50,20 @@ export interface TwinIo {
   /** instrument-legal command implementations, keyed by operation id —
    *  invoked by the generated Mutation before answering the state. */
   operations?: Record<string, () => void>
+  /** The signed-serve posture (opt-in; spec §12): when set, quantity
+   *  serves sign at serve time and serve servedAt as canonical ISO.
+   *  Undefined = the legacy face (epoch-seconds servedAt, no envelope). */
+  signing?: ServeSigning
 }
+
+/** The envelope scalar: the signature member is OPAQUE to graphql (the
+ *  consumer's document selects it without a subselection; the value is
+ *  the snake_case wire block, passed through untouched). */
+export const ServeSignatureScalar = new GraphQLScalarType({
+  name: 'ServeSignature',
+  description: 'The signed-serve envelope (spec §12): the snake_case signature block, opaque to graphql.',
+  serialize: v => v,
+})
 
 const BASE_TYPES = /* GraphQL */ `
   type ServedQuantity { value: Float!, unit: String!, kind: String!, servedAt: Float! }
@@ -47,21 +75,41 @@ const BASE_TYPES = /* GraphQL */ `
   type LegalOperationInfo { id: String!, kind: String! }
 `
 
+/** The signed posture's base types: servedAt as canonical-ISO String +
+ *  the envelope member. Only ServedQuantity changes; the rest of the
+ *  base surface is identical. */
+const BASE_TYPES_SIGNED = /* GraphQL */ `
+  scalar ServeSignature
+  type ServedQuantity { value: Float!, unit: String!, kind: String!, servedAt: String!, signature: ServeSignature! }
+  type Environment { temperatureDegC: Float!, humidityPercentRh: Float!, pressureKPa: Float! }
+  type OpResult { state: String! }
+  type Quantity { value: Float!, unit: String! }
+  type MpeBand { lower: Float!, upper: Float, factor: Float! }
+  type ServedRegisterInfo { target: String!, via: String!, freshWithinS: Float, returnType: String! }
+  type LegalOperationInfo { id: String!, kind: String! }
+`
+
 /** The resolver for one serve target: the core registers read the
  *  instrument's legal view; anything further needs a caller-supplied
- *  register reader (generation is total — never silently dropped). */
+ *  register reader (generation is total — never silently dropped).
+ *  Under the signed-serve posture the QUANTITY serves wrap in the
+ *  signing act (async); state + environmental_context stay unsigned
+ *  (the channel's named limit). */
 function readerFor(target: string, io: TwinIo): () => unknown {
+  const signing = io.signing
   if (target === 'indication') {
-    return () => {
+    const raw = () => {
       const q = io.instrument.indication()
       return { value: q.value, unit: q.unit, kind: q.kind, servedAt: io.instrument.servedAt() }
     }
+    return signing ? signedQuantityReader(target, raw, signing) : raw
   }
   if (target === 'state') return () => io.instrument.operationalState()
   if (target === 'environmental_context') return () => io.instrument.environment()
   const reader = io.registers?.[target]
   if (!reader) throw new Error(`no twin register reader for serve target '${target}' — the instrument cannot answer a declared serve (law 2)`)
-  return reader
+  if (!signing) return reader
+  return signedQuantityReader(target, reader as () => RawServedQuantity, signing)
 }
 
 /** Map a serve target to its schema field (Query vs Subscription via
@@ -99,7 +147,7 @@ export function generateTwinSchema(contract: TwinContract, io: TwinIo): GraphQLS
   if (mirror) queryFields.push('instrument: InstrumentModel!')
 
   const typeDefs = /* GraphQL */ `
-    ${BASE_TYPES}
+    ${io.signing ? BASE_TYPES_SIGNED : BASE_TYPES}
     ${mirror?.typeDefs ?? ''}
     type Query { ${queryFields.join(' ') || '_empty: String'} }
     ${mutationFields.length ? `type Mutation { ${mutationFields.join(' ')} }` : ''}
@@ -130,6 +178,7 @@ export function generateTwinSchema(contract: TwinContract, io: TwinIo): GraphQLS
     typeDefs,
     resolvers: {
       Query: queryResolvers,
+      ...(io.signing ? { ServeSignature: ServeSignatureScalar } : {}),
       ...(mutationFields.length ? { Mutation: mutationResolvers } : {}),
       ...(subscriptionFields.length ? { Subscription: subscriptionResolvers(contract, io) } : {}),
     },

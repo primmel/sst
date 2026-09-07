@@ -51,6 +51,14 @@ export interface PackageManifest {
   // tier: primmel-instance — the composite overlay (spec 13)
   composition?: CompositionDeclaration
 
+  // tier: primmel-instance — the signed-serve posture (spec §12, opt-in).
+  // The package declares its device identity + sim-custody pair; the
+  // posture ACTIVATES only when the deployment opts in (the
+  // SST_SIGNED_SERVE env for CLI boots, SessionOptions.signing /
+  // .componentSigning for programmatic ones) — a committed block alone
+  // never changes the served bytes.
+  signing?: import('./twin/serve-signing.js').ServeSigningDecl
+
   // Migration stubs
   status?: 'stub' | 'production'
 }

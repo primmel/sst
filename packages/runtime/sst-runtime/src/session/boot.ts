@@ -31,6 +31,27 @@ import { tryBootFromBehavior } from '../kinds/boot-from-behavior.js'
 import { buildTwinIo } from '../kinds/twin-io-builder.js'
 import type { TwinContract, InstrumentModel, ModelQuantity, DesignParameters, MetrologicalLimits } from '../twin-contract.js'
 import { parseMpeConfig } from '../certification/verdict.js'
+import {
+  resolveServeSigning,
+  signedServeEnvEnabled,
+  type ServeSigning,
+  type ServeSigningDecl,
+} from '../twin/serve-signing.js'
+
+// ── The signed-serve posture (spec §12, opt-in) ──────────────────────
+
+/** Resolve the boot's signing posture: a programmatic declaration
+ *  (SessionOptions.signing) ACTIVATES directly; the manifest's
+ *  `signing:` block activates only under the SST_SIGNED_SERVE env (a
+ *  committed block alone never changes the served bytes — the default
+ *  boot is byte-identical). */
+export async function resolveBootSigning(
+  manifestDecl: ServeSigningDecl | undefined,
+  optsDecl: ServeSigningDecl | undefined,
+): Promise<ServeSigning | undefined> {
+  const decl = optsDecl ?? (signedServeEnvEnabled() ? manifestDecl : undefined)
+  return decl ? resolveServeSigning(decl) : undefined
+}
 
 // ── Path resolution ───────────────────────────────────────────────────
 
@@ -309,9 +330,12 @@ export async function bootSession(
   // TwinIo: model-driven from contract serves + instrument surface +
   // optional behavior.twinRegisters. v2's universal path always produces
   // an instrument, so the legacy fallback is unreachable; keep a clear
-  // error if it ever fires.
+  // error if it ever fires. The signed-serve posture (spec §12, opt-in)
+  // resolves here: SessionOptions.signing activates directly, the
+  // manifest's signing: block only under the SST_SIGNED_SERVE env.
+  const signing = await resolveBootSigning(instance.manifest.signing, opts.signing)
   const twinIo = instrument != null
-    ? buildTwinIo(instrument, clock, contract, behavior)
+    ? buildTwinIo(instrument, clock, contract, behavior, signing)
     : (() => { throw new Error(`runSession: universal boot produced no instrument for '${instance.manifest.id}'`) })()
   if (!twinIo) {
     throw new Error(`runSession: no TwinIo for kind '${kindId}'`)
