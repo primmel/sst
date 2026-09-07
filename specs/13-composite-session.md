@@ -124,6 +124,22 @@ code):
 The computed state is served as `operationalState` on the composite
 /twin and stamped on every composite frame.
 
+### 4.1 Signed component serves (opt-in)
+
+Under the signed-serve posture (specs/12 §3.9), each component signs
+with its OWN device key: the composite's decomposed quantity serves
+carry the serving component's envelope (the signature covers the
+component's attested endpoint id + its declared aspect spelling — the
+`signing.registers` override where the internal target and the model's
+aspect differ, e.g. the sampling line's `sample_flow` attests
+`sample.test_context.flow`). Signed fields take the distinct
+`SignedServedQuantity` type, so a composite may mix signing and
+unsigned components — a DECLARED mixed posture, never a hidden gap.
+The computed composite state (a scalar) carries no envelope, and the
+per-tick couplers + the `/twin/stream` frames consume the components'
+RAW (unsigned) readers — the signing act lives at the composite's
+/twin resolver seam only.
+
 ## 5. The Primmel bridge (the authority question)
 
 The **authoritative** composition semantics live in the Primmel

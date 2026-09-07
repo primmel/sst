@@ -14,6 +14,7 @@ import type { TwinIo, TwinInstrumentView } from '../twin-schema.js'
 import { snakeToCamel } from '../twin-schema.js'
 import type { TwinContract } from '../twin-contract.js'
 import type { LoadedBehavior } from './behavior-loader.js'
+import type { ServeSigning } from '../twin/serve-signing.js'
 
 const CORE_TARGETS = new Set(['indication', 'state', 'environmental_context'])
 
@@ -23,12 +24,17 @@ const CORE_TARGETS = new Set(['indication', 'state', 'environmental_context'])
  * Resolution order for non-core serve targets:
  *   1. behavior.twinRegisters(instrument) if provided
  *   2. Convention-based auto-discovery on the instrument surface
+ *
+ * The signed-serve posture passes through untouched: readers stay RAW
+ * (the /twin/stream + composite couplers consume them); the signing act
+ * wraps at the schema resolver seam (twin-schema.ts's readerFor).
  */
 export function buildTwinIo(
   instrument: unknown,
   clock: VirtualClock,
   contract: TwinContract,
   behavior?: LoadedBehavior,
+  signing?: ServeSigning,
 ): TwinIo {
   const inst = instrument as TwinInstrumentView & Record<string, unknown>
 
@@ -64,6 +70,7 @@ export function buildTwinIo(
     clock,
     ...(Object.keys(registers).length ? { registers } : {}),
     ...(Object.keys(operations).length ? { operations } : {}),
+    ...(signing ? { signing } : {}),
   }
 }
 

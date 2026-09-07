@@ -94,7 +94,7 @@ Notice that `state` (served via a `watch` operation) appears in **both** `Query`
 
 ### 3.2 The invariant types (always present)
 
-Regardless of which Primmel model generated the schema, these types are always defined:
+Regardless of which Primmel model generated the schema, these types are always defined. (Under the opt-in signed-serve posture — §3.9 — `ServedQuantity` carries `servedAt` as a canonical-ISO `String!` plus the `signature` envelope member; the shape below is the default, unsigned face.)
 
 ```graphql
 type ServedQuantity {
@@ -299,6 +299,56 @@ Response:
 ```json
 { "data": { "runSelfTest": { "state": "ready" } } }
 ```
+
+### 3.9 Signed serves (opt-in — the signed-serve posture)
+
+A deployment can require **device-signed serves**: every served quantity carries a signature envelope proving origin + integrity, so certification software (the OIML SMART platform's gateway, TODO.v3/10) can verify a serve genuinely came from the certified twin. The posture is **opt-in per boot**; an unsigned boot is byte-identical to what this spec describes above.
+
+**The epistemic wall stands.** The signature proves *whose value this is and that the bytes are the twin's own* — never that the value is physically true. A lying twin (`setFidelity`) with a valid key still lies validly; that is exactly why the probe channel exists.
+
+**Activation.** Signing is a deployment act, never a default:
+
+- *Programmatic*: `SessionOptions.signing` (single instance) or `SessionOptions.componentSigning` (composite, per component id) carrying the device identity — passing the declaration IS the opt-in.
+- *Manifest + env*: an instance package may declare a `signing:` block (`endpoint`, `key_id`, `public_key_spki`, `private_key_pkcs8`, optional `registers` — see below). The block is **inert** unless the boot sets `SST_SIGNED_SERVE=1` (the `SIM_WORLD_TOKEN` idiom): a committed block alone never changes the served bytes. A package carrying the block holds its device pair in **simulation custody** — the package IS the device; a real deployment provisions the private half programmatically, never via a committed artifact.
+
+**The wire shape under the posture.** `ServedQuantity` gains the envelope and serves its own timestamp as canonical ISO:
+
+```graphql
+scalar ServeSignature            # the envelope block, opaque to graphql (selected without a subselection)
+
+type ServedQuantity {
+  value: Float!
+  unit: String!
+  kind: String!
+  servedAt: String!              # canonical ISO-8601 (toISOString form) — the twin's OWN serve time
+  signature: ServeSignature!
+}
+```
+
+The `signature` member is the snake_case block (the platform's data conventions), self-describing:
+
+```json
+{
+  "algorithm": "ECDSA-P256-SHA256",
+  "key_id": "cgm200-unit-42-key-1",
+  "endpoint": "cgm_api",
+  "register": "indication_co",
+  "public_key_spki": "MFkwEw…",
+  "signature": "…base64url(r‖s)…"
+}
+```
+
+**The signed bytes** (the consumer owns this contract; the runtime is byte-compatible with it, pinned by cross-repo test vectors): the deep-sorted canonical JSON — keys sorted recursively, no insignificant whitespace — of exactly
+
+```
+{ "endpoint": …, "register": …, "servedAt": …, "value": …, "unit": …? }
+```
+
+signed with **ECDSA P-256 / SHA-256** (WebCrypto), the DER-less `r‖s` signature base64url-encoded. `unit` is covered only when served. `servedAt` is the very string the response carries (the verifier reconstructs the coverage from the landed serve, never from a second copy). `endpoint` is the twin's attested endpoint id (the deployment's declared id for the channel); `register` is the twin's **declared aspect spelling** — the `signing.registers` map overrides the internal serve target where the two spellings differ (the sampling line's `sample_flow` attests the R 144 aspect `sample.test_context.flow`).
+
+**The named limit.** State and environmental-context serves carry **no envelope** — a scalar state selection has nothing to bind; the `/twin/stream` SSE frames stay the legacy face. Only quantity serves sign.
+
+**The composite (specs/13).** Each component signs with its OWN device key; the composite's decomposed serves carry the serving component's envelope (the signed fields take a distinct `SignedServedQuantity` type, so a composite may mix signing and unsigned components — a DECLARED mixed posture, never a hidden gap). The consumer's weakest-link calculus gains its cryptographic floor: a forged component value never lands in a composite register.
 
 ## 4. The `/world` channel — kind-driven
 

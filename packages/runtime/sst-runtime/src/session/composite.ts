@@ -35,7 +35,7 @@ import { VirtualClock } from '../time.js'
 import { loadPackage, type LoadedPackage, type CompositionDeclaration } from '../package-loader.js'
 import { tryBootFromBehavior } from '../kinds/boot-from-behavior.js'
 import { buildTwinIo } from '../kinds/twin-io-builder.js'
-import { generateTwinSchema, type TwinIo } from '../twin-schema.js'
+import { generateTwinSchema, ServeSignatureScalar, type TwinIo } from '../twin-schema.js'
 import { checkTwinConformance } from '../conformance.js'
 import { loadBakedContract } from '../twin-bake.js'
 import { createSimServer } from '../server.js'
@@ -45,6 +45,13 @@ import type { TwinContract } from '../twin-contract.js'
 import { readFile } from 'node:fs/promises'
 import { parse as parseYaml } from 'yaml'
 import type { Session, SessionOptions } from '../session.js'
+import { resolveBootSigning } from './boot.js'
+import {
+  signedQuantityReader,
+  type RawServedQuantity,
+  type ServeSigning,
+  type ServeSigningDecl,
+} from '../twin/serve-signing.js'
 
 // ── Path resolution ───────────────────────────────────────────────────
 
@@ -89,6 +96,10 @@ interface ComponentSession {
   twinIo: TwinIo
   contract: TwinContract
   behavior: import('../kinds/behavior-loader.js').LoadedBehavior | undefined
+  /** The component's signed-serve posture (spec §12, opt-in): set ⇒ the
+   *  composite's serves decomposed to this component's QUANTITY
+   *  registers carry the component's signature envelope. */
+  signing?: ServeSigning
 }
 
 /** Boot one component as an in-process session (no HTTP server). Used by
@@ -100,6 +111,7 @@ async function bootComponent(
   clock: VirtualClock,
   seed: number,
   kindsDir: string,
+  signingDecl?: ServeSigningDecl,
 ): Promise<ComponentSession> {
   const kindId = instance.manifest.kind
   if (!kindId) throw new Error(`composite component '${id}': instance '${instance.manifest.id}' has no 'kind' reference`)
@@ -135,6 +147,11 @@ async function bootComponent(
     throw new Error(`composite component '${id}': twin conformance FAILED:\n  - ${diffs.join('\n  - ')}`)
   }
 
+  // The signed-serve posture (spec §12, opt-in): the programmatic
+  // declaration activates directly; the component manifest's signing:
+  // block only under the SST_SIGNED_SERVE env.
+  const signing = await resolveBootSigning(instance.manifest.signing, signingDecl)
+
   return {
     id,
     instance,
@@ -145,6 +162,7 @@ async function bootComponent(
     twinIo,
     contract,
     behavior: bootResult.behavior,
+    ...(signing ? { signing } : {}),
   }
 }
 
@@ -222,7 +240,11 @@ function buildCompositeTwinSchema(
     if (!cs) throw new Error(`composite twin: decomposition '${target}: ${source}' references unknown component '${componentId}'`)
     // Resolve via the component's TwinIo. The contract's serve target is
     // snake_case; the component instrument's reader follows the same
-    // convention (auto-discovered in buildTwinIo).
+    // convention (auto-discovered in buildTwinIo). A SIGNING component's
+    // quantity serves wrap in the signing act (spec §12 — the signature
+    // covers the COMPONENT's declared aspect, the composite serves its
+    // components' attestations; the raw reader stays the couplers' and
+    // the stream's face).
     queryFields[target] = {
       type: GraphQLString, // placeholder; the resolve returns whatever the reader yields
       resolve: () => readComponentRegister(cs, registerName!),
@@ -241,6 +263,19 @@ function buildCompositeTwinSchema(
       servedAt: { type: GraphQLFloat },
     },
   })
+  // The signed posture's quantity shape (spec §12): servedAt as
+  // canonical-ISO String + the opaque signature member. A DISTINCT type
+  // name — a composite may mix signing and unsigned components.
+  const SignedServedQuantity = new GraphQLObjectType({
+    name: 'SignedServedQuantity',
+    fields: {
+      value: { type: GraphQLFloat },
+      unit: { type: GraphQLString },
+      kind: { type: GraphQLString },
+      servedAt: { type: GraphQLString },
+      signature: { type: ServeSignatureScalar },
+    },
+  })
   const EnvironmentalContext = new GraphQLObjectType({
     name: 'EnvironmentalContext',
     fields: {
@@ -252,7 +287,10 @@ function buildCompositeTwinSchema(
 
   // Rebuild each query field with the correct type (registers that come
   // from a kind contract inherit ServedQuantity; state/operationalState
-  // are strings; environmental_context is an object).
+  // are strings; environmental_context is an object). A signing
+  // component's quantity serves get the signed shape AND the signing
+  // resolver (state/environmental serves carry no envelope — the
+  // channel's named limit).
   for (const [target, source] of Object.entries(decomposition)) {
     const [componentId, registerName] = source.split('.')
     if (componentId === '<computed>') continue
@@ -264,6 +302,14 @@ function buildCompositeTwinSchema(
       queryFields[target]!.type = GraphQLString
     } else if (serve.target === 'environmental_context') {
       queryFields[target]!.type = EnvironmentalContext
+    } else if (cs.signing) {
+      queryFields[target]!.type = SignedServedQuantity
+      const signing = cs.signing
+      queryFields[target]!.resolve = signedQuantityReader(
+        registerName!,
+        () => readComponentRegister(cs, registerName!) as RawServedQuantity,
+        signing,
+      )
     } else {
       queryFields[target]!.type = ServedQuantity
     }
@@ -619,11 +665,15 @@ export async function composeSession(
     })
   }
 
-  // 1. Boot each component as an in-process session.
+  // 1. Boot each component as an in-process session. The signed-serve
+  //    posture (spec §12, opt-in) resolves per component: the
+  //    programmatic componentSigning declaration activates directly;
+  //    the component manifest's signing: block only under the
+  //    SST_SIGNED_SERVE env.
   for (const [id, comp] of Object.entries(composition.components)) {
     const compPath = isAbsolute(comp.instance) ? comp.instance : resolve(composite.rootPath, comp.instance)
     const compPkg = await loadPackage(compPath)
-    const cs = await bootComponent(id, compPkg, clock, seed, kindsDir)
+    const cs = await bootComponent(id, compPkg, clock, seed, kindsDir, opts.componentSigning?.[id])
     components.set(id, cs)
   }
 

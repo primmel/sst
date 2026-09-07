@@ -7,6 +7,7 @@ import type { LoadedPackage } from './package-loader.js'
 import { lookupKind } from './kinds/registry.js'
 import { bootSession, type BootPaths } from './session/boot.js'
 import { composeSession } from './session/composite.js'
+import type { ServeSigningDecl } from './twin/serve-signing.js'
 
 export interface SessionOptions {
   port?: number
@@ -19,6 +20,17 @@ export interface SessionOptions {
   /** CORS origins for browser clients (TODO.ops/29): comma-separated
    *  or '*' — the hosted platform driving a local sim. */
   corsOrigins?: string
+  /** The signed-serve posture (spec §12, opt-in — single-instance
+   *  boots): the twin signs every served quantity with this device
+   *  identity. Programmatic declarations ACTIVATE the posture (a
+   *  deployment act); the manifest's `signing:` block alone is inert
+   *  without the SST_SIGNED_SERVE env. */
+  signing?: ServeSigningDecl
+  /** Composite boots: per-component signing declarations (the
+   *  component id → its device identity). A component without a
+   *  declaration serves unsigned — a DECLARED mixed posture, never a
+   *  hidden gap. */
+  componentSigning?: Record<string, ServeSigningDecl>
 }
 
 export interface Session {
