@@ -469,6 +469,21 @@ npx primmel-sst list-kinds                                # list registered kind
 
 For TS clients, `introspectTwin(url)` runs the standard introspection query and returns the typed schema summary. See §6.1.
 
+### 5.5 The OpenAPI projection (the REST leg)
+
+The same `TwinContract` the GraphQL schema generates from projects into an OpenAPI 3.1 document (`src/twin-openapi.ts`, beside `twin-schema.ts` — one contract, two projections). The document is GENERATED at boot, never hand-written, so it cannot drift from the GraphQL leg; `checkOpenApiConformance` gates it at startup exactly as §3.7 gates the schema — a serve or command the document does not carry fails the boot.
+
+The document is served at `GET /openapi.json`. Its paths are relative to the `/twin` channel root (`servers: [{ url: '/twin' }]`):
+
+- one `GET /registers/<target>` per declared serve, answering the `ServedQuantity` shape (the state serve answers a bare JSON string, `environmental_context` an `Environment` object); the declared `fresh_within` bound rides as the `fresh-within-s` response header;
+- one `POST /operations/<op_id>` per command operation, answering `OpResult` (`{ state }`) after the instrument-legal implementation runs;
+- `GET /instrument`, answering the same mirror object `Query.instrument` resolves to (§3.3);
+- `GET /stream`, documenting the SSE channel (`text/event-stream`).
+
+The runtime serves these REST routes alongside the GraphQL channel, bound to the SAME readers the generated resolvers use — the schema-first law holds on both legs: a declared serve with no reader fails the boot either way. Under the signed-serve posture (§3.9) the document carries the envelope as first-class components: quantity serves answer `SignedServedQuantity` (canonical-ISO `servedAt` + the `signature` member, `$ref ServeSignature`), so a generated REST client inherits the verification posture.
+
+The `/world` channel is deliberately absent from the document: it is the simulation interface, not the instrument's legal API.
+
 ## 6. Client libraries
 
 ### 6.1 TypeScript — `TwinDriver<C>` (the typed client)

@@ -94,8 +94,9 @@ const BASE_TYPES_SIGNED = /* GraphQL */ `
  *  register reader (generation is total — never silently dropped).
  *  Under the signed-serve posture the QUANTITY serves wrap in the
  *  signing act (async); state + environmental_context stay unsigned
- *  (the channel's named limit). */
-function readerFor(target: string, io: TwinIo): () => unknown {
+ *  (the channel's named limit). Exported for the OpenAPI leg's REST
+ *  routes (twin-openapi.ts) — one read path, two projections. */
+export function readerFor(target: string, io: TwinIo): () => unknown {
   const signing = io.signing
   if (target === 'indication') {
     const raw = () => {
@@ -232,16 +233,27 @@ function generateModelMirror(model: InstrumentModel, contract: TwinContract): { 
   rootFields.push('legalOperations: [LegalOperationInfo!]!')
   sections.push(`type InstrumentModel { ${rootFields.join(' ')} }`)
 
+  // The resolver returns the full model object, with snake_case keys
+  // converted to camelCase so graphql-yoga's default field resolution
+  // (parent[fieldName]) finds each value.
+  const resolver = () => instrumentMirrorObject(model, contract)
+
+  return { typeDefs: sections.join('\n'), resolver }
+}
+
+/** The instrument mirror as a plain object (camelCase keys, Infinity
+ *  MPE-band uppers as null) — the shape Query.instrument resolves to.
+ *  Exported for the OpenAPI leg: GET /twin/instrument answers exactly
+ *  this object, so the REST projection and the GraphQL mirror can never
+ *  diverge. */
+export function instrumentMirrorObject(model: InstrumentModel, contract: TwinContract): unknown {
   const returnTypeFor = (target: string): string =>
     target === 'indication' ? 'ServedQuantity' :
     target === 'state' ? 'String' :
     target === 'environmental_context' ? 'Environment' :
     'ServedQuantity'
 
-  // The resolver returns the full model object, with snake_case keys
-  // converted to camelCase so graphql-yoga's default field resolution
-  // (parent[fieldName]) finds each value.
-  const resolver = () => ({
+  return {
     identification: toCamelKeys(model.identification as unknown as Record<string, unknown>),
     classification: model.classification ? toCamelKeys(model.classification) : null,
     designParameters: model.designParameters ? toCamelKeys(model.designParameters) : null,
@@ -268,9 +280,7 @@ function generateModelMirror(model: InstrumentModel, contract: TwinContract): { 
       returnType: returnTypeFor(s.target),
     })),
     legalOperations: contract.operations.map((o) => ({ id: o.id, kind: o.kind })),
-  })
-
-  return { typeDefs: sections.join('\n'), resolver }
+  }
 }
 
 /** Emit a GraphQL type with one field per property of `obj`. Numeric

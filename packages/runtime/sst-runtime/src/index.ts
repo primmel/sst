@@ -99,6 +99,7 @@ export { buildGasWorldSchema, GAS_WORLD_KIND, type GasWorldContext } from './gas
 export { createSimServer, type SimServer, type SimServerOptions } from './server.js'
 export { generateTwinSchema, snakeToCamel, type TwinIo, type TwinInstrumentView } from './twin-schema.js'
 export { checkTwinConformance } from './conformance.js'
+export { generateTwinOpenApi, checkOpenApiConformance, FRESH_WITHIN_HEADER, type TwinOpenApiOptions } from './twin-openapi.js'
 
 // ── Framework: twin contracts + models + bake ────────────────────────
 export {

@@ -20,6 +20,7 @@ import { VirtualClock } from '../time.js'
 import { buildWorldSchema } from '../world-schema.js'
 import { generateTwinSchema } from '../twin-schema.js'
 import { checkTwinConformance } from '../conformance.js'
+import { generateTwinOpenApi, checkOpenApiConformance } from '../twin-openapi.js'
 import { loadBakedContract } from '../twin-bake.js'
 import { createSimServer } from '../server.js'
 import { ComposedInstrument, type ComposedInstrumentConfig } from '../stages/composer.js'
@@ -347,6 +348,16 @@ export async function bootSession(
     throw new Error(`twin conformance check FAILED for instance '${instance.manifest.id}':\n  - ${diffs.join('\n  - ')}`)
   }
 
+  // The OpenAPI leg (spec §12 §5.5): the REST projection of the same
+  // contract, generated at boot and gated by its own conformance check
+  // — a drift between the package's serves and the document fails the
+  // boot on either projection.
+  const openApiDoc = generateTwinOpenApi(contract, { signed: signing != null })
+  const openApiDiffs = checkOpenApiConformance(openApiDoc, contract)
+  if (openApiDiffs.length > 0) {
+    throw new Error(`twin OpenAPI conformance check FAILED for instance '${instance.manifest.id}':\n  - ${openApiDiffs.join('\n  - ')}`)
+  }
+
   // 5. Boot the server with real-time twin streaming enabled.
   //    The /twin/stream endpoint emits SSE events on every clock advance,
   //    enabling continuous monitoring (not just annual calibration).
@@ -361,6 +372,8 @@ export async function bootSession(
     title: `${instance.manifest.title} (SST)`,
     worldToken: opts.worldToken,
     corsOrigins: opts.corsOrigins,
+    openApiDoc,
+    twinRest: { contract, io: twinIo },
     ...(existsSync(benchDir) ? { benchDir } : {}),
     twinStream: {
       clock,
