@@ -482,6 +482,8 @@ The document is served at `GET /openapi.json`. Its paths are relative to the `/t
 
 The runtime serves these REST routes alongside the GraphQL channel, bound to the SAME readers the generated resolvers use — the schema-first law holds on both legs: a declared serve with no reader fails the boot either way. Under the signed-serve posture (§3.9) the document carries the envelope as first-class components: quantity serves answer `SignedServedQuantity` (canonical-ISO `servedAt` + the `signature` member, `$ref ServeSignature`), so a generated REST client inherits the verification posture.
 
+The composite session (spec 13) projects its assembled contract the same way. The document carries one `GET /registers/<target>` per decomposition register in the composite's flat register namespace, which is the same namespace the composite Query fields expose; the decomposition map is the composite's addressing, so the document introduces no per-instrument path prefixes. What the target names alone cannot express is declared per serve, derived from the source components' contracts: the computed composite state answers a bare string, an Environment serve under a composite spelling answers the `Environment` object, and each register inherits its source component's signed posture, which allows one document to mix signing and unsigned components. The composite boot gates the document with `checkOpenApiConformance` exactly as the single-instrument boot does, and its REST routes bind to the same per-register readers the composite GraphQL resolvers call.
+
 The `/world` channel is deliberately absent from the document: it is the simulation interface, not the instrument's legal API.
 
 ## 6. Client libraries

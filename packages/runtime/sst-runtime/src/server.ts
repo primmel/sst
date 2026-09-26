@@ -57,9 +57,22 @@ export interface SimServerOptions {
   /** The REST projection of the twin contract (the OpenAPI leg's
    *  runtime half): GET /twin/registers/<target>, POST
    *  /twin/operations/<op_id>, GET /twin/instrument — the same readers
-   *  the generated GraphQL resolvers bind to. */
-  twinRest?: { contract: TwinContract; io: TwinIo } | undefined
+   *  the generated GraphQL resolvers bind to. The single-instrument
+   *  boot binds the TwinIo (`readerFor` resolves each serve); the
+   *  composite boot binds a `read` delegate (its registers resolve via
+   *  the decomposition map to the components' readers — the same
+   *  functions the composite schema's resolvers call). */
+  twinRest?: TwinRestBinding | undefined
 }
+
+/** The REST projection's reader binding: the single-instrument shape
+ *  (contract + TwinIo) or the composite shape (contract + a per-target
+ *  read delegate). Command operations run only against a TwinIo — the
+ *  composite twin exposes no mutation leg, so a declared command under
+ *  a read-delegate binding answers 501. */
+export type TwinRestBinding =
+  | { contract: TwinContract; io: TwinIo }
+  | { contract: TwinContract; read: (target: string) => unknown | Promise<unknown> }
 
 export interface SimServer {
   url: string
@@ -351,7 +364,7 @@ interface RestResponse {
 async function handleRestRegister(
   res: RestResponse,
   target: string,
-  rest: { contract: TwinContract; io: TwinIo },
+  rest: TwinRestBinding,
 ): Promise<void> {
   const serve = rest.contract.serves.find(s => s.target === target)
   if (!serve) {
@@ -360,7 +373,7 @@ async function handleRestRegister(
     return
   }
   try {
-    const value = await readerFor(target, rest.io)()
+    const value = 'io' in rest ? await readerFor(target, rest.io)() : await rest.read(target)
     const headers: Record<string, string> = { 'content-type': 'application/json' }
     if (serve.freshWithinS != null) headers[FRESH_WITHIN_HEADER] = String(serve.freshWithinS)
     res.writeHead(200, headers)
@@ -373,16 +386,23 @@ async function handleRestRegister(
 
 /** POST /twin/operations/<op_id> — the REST projection of one declared
  *  command operation: the instrument-legal implementation runs first,
- *  then the operational state answers (the GraphQL Mutation's shape). */
+ *  then the operational state answers (the GraphQL Mutation's shape).
+ *  Command operations need a TwinIo; a read-delegate binding (the
+ *  composite boot) has no mutation leg to run them through. */
 function handleRestOperation(
   res: RestResponse,
   opId: string,
-  rest: { contract: TwinContract; io: TwinIo },
+  rest: TwinRestBinding,
 ): void {
   const op = rest.contract.operations.find(o => o.id === opId && o.kind === 'command')
   if (!op) {
     res.writeHead(404, { 'content-type': 'text/plain' })
     res.end(`no declared command operation '${opId}'`)
+    return
+  }
+  if (!('io' in rest)) {
+    res.writeHead(501, { 'content-type': 'text/plain' })
+    res.end(`command operation '${opId}' is declared but this twin binding runs no operations (the composite twin exposes no mutation leg)`)
     return
   }
   try {
