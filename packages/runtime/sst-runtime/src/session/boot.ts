@@ -29,6 +29,7 @@ import type { LoadedPackage } from '../package-loader.js'
 import type { Session, SessionOptions } from '../session.js'
 import { lookupKind } from '../kinds/registry.js'
 import { tryBootFromBehavior } from '../kinds/boot-from-behavior.js'
+import { readSampleSerial } from '../kinds/definition-builder.js'
 import { buildTwinIo } from '../kinds/twin-io-builder.js'
 import type { TwinContract, InstrumentModel, ModelQuantity, DesignParameters, MetrologicalLimits } from '../twin-contract.js'
 import { parseMpeConfig } from '../certification/verdict.js'
@@ -327,6 +328,12 @@ export async function bootSession(
   }
   const baseContract = await loadBakedContract(twinContractPath)
   const contract = enrichWithModel(baseContract, instance, kindDir(kindId, kindsDir))
+
+  // The twin IS the sampled unit: the booted sample's serial number
+  // mirrors into the identification block (the model mirror's SDL and
+  // resolver walk the model's keys, so the field flows through both).
+  const sampleSerial = await readSampleSerial(instance, opts.sample)
+  if (sampleSerial) contract.model.identification.serial = sampleSerial
 
   // TwinIo: model-driven from contract serves + instrument surface +
   // optional behavior.twinRegisters. v2's universal path always produces
