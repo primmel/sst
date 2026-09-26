@@ -33,6 +33,19 @@ export interface TwinOpenApiOptions {
   /** The signed-serve posture (spec §12): quantity serves carry the
    *  canonical-ISO servedAt + the signature envelope member. */
   signed?: boolean
+  /** Per-serve signedness (the composite boot, spec §13): each
+   *  composite register inherits its SOURCE COMPONENT's posture, so a
+   *  composite may mix signing and unsigned components. When present,
+   *  membership decides a serve's shape and `signed` is ignored; the
+   *  envelope components are emitted when the set is non-empty. */
+  signedTargets?: ReadonlySet<string>
+  /** Per-serve return-schema overrides (the composite boot): a serve
+   *  whose wire shape the target-name heuristic cannot infer — the
+   *  computed composite state (a bare string under a camelCase target),
+   *  an Environment serve under a composite spelling — declares its
+   *  schema here. The composite boot derives these from the same
+   *  component contracts the GraphQL leg types its fields from. */
+  serveSchemas?: Record<string, JsonSchema>
 }
 
 /** The freshness response header name (one spelling across the document
@@ -49,7 +62,7 @@ function serveSchemaRef(target: string, signed: boolean): JsonSchema {
 
 /** One GET operation for a serve. The fresh_within bound is documented
  *  as a first-class response header. */
-function servePathItem(target: string, via: string, freshWithinS: number | undefined, signed: boolean): JsonSchema {
+function servePathItem(target: string, via: string, freshWithinS: number | undefined, schema: JsonSchema): JsonSchema {
   const headers: Record<string, unknown> = {}
   if (freshWithinS != null) {
     headers[FRESH_WITHIN_HEADER] = {
@@ -65,7 +78,7 @@ function servePathItem(target: string, via: string, freshWithinS: number | undef
         '200': {
           description: `The '${target}' serve.`,
           ...(Object.keys(headers).length ? { headers } : {}),
-          content: { 'application/json': { schema: serveSchemaRef(target, signed) } },
+          content: { 'application/json': { schema } },
         },
       },
     },
@@ -240,11 +253,13 @@ function jsonSchemaOf(value: unknown): JsonSchema {
  *  never hand-written: every path derives from a contract declaration,
  *  so the document cannot drift from the GraphQL leg. */
 export function generateTwinOpenApi(contract: TwinContract, opts: TwinOpenApiOptions = {}): Record<string, unknown> {
-  const signed = opts.signed ?? false
+  const anySigned = opts.signedTargets ? opts.signedTargets.size > 0 : (opts.signed ?? false)
+  const signedFor = (target: string): boolean => opts.signedTargets ? opts.signedTargets.has(target) : (opts.signed ?? false)
   const paths: Record<string, unknown> = {}
 
   for (const serve of contract.serves) {
-    paths[`/registers/${serve.target}`] = servePathItem(serve.target, serve.via, serve.freshWithinS, signed)
+    const schema = opts.serveSchemas?.[serve.target] ?? serveSchemaRef(serve.target, signedFor(serve.target))
+    paths[`/registers/${serve.target}`] = servePathItem(serve.target, serve.via, serve.freshWithinS, schema)
   }
   for (const op of contract.operations) {
     if (op.kind !== 'command') continue
@@ -309,7 +324,7 @@ export function generateTwinOpenApi(contract: TwinContract, opts: TwinOpenApiOpt
     },
     servers: [{ url: '/twin', description: 'The twin channel root.' }],
     paths,
-    components: { schemas: componentSchemas(contract.model, signed) },
+    components: { schemas: componentSchemas(contract.model, anySigned) },
   }
 }
 

@@ -17,7 +17,10 @@
 //      serves; state rule names a registered rule + component.
 //   4. Build the composite /twin schema from a baked composite contract;
 //      each top-level field's resolver delegates via the decomposition map
-//      to the component's TwinIo readers.
+//      to the component's TwinIo readers. The OpenAPI projection (spec
+//      §12 §5.5) generates from the same assembled contract — one
+//      GET /registers/<target> per decomposition register — gated by
+//      checkOpenApiConformance exactly as the single-instrument boot.
 //   5. Build the composite /world schema with component-scoped mutations
 //      (component(id: ID!): ComponentMutations AND bare <component_id>:
 //      ComponentMutations) + single-match unscoped delegation.
@@ -37,6 +40,7 @@ import { tryBootFromBehavior } from '../kinds/boot-from-behavior.js'
 import { buildTwinIo } from '../kinds/twin-io-builder.js'
 import { generateTwinSchema, ServeSignatureScalar, type TwinIo } from '../twin-schema.js'
 import { checkTwinConformance } from '../conformance.js'
+import { generateTwinOpenApi, checkOpenApiConformance } from '../twin-openapi.js'
 import { loadBakedContract } from '../twin-bake.js'
 import { createSimServer } from '../server.js'
 import { lookupKind } from '../kinds/registry.js'
@@ -208,15 +212,17 @@ const STATE_RULES = new Map<string, StateRule>([
 
 // ── The composite twin schema (delegation via decomposition) ──────────
 
-/** Build a composite twin schema by delegating each top-level field to
- *  the corresponding component's TwinIo reader (or computing it via the
- *  state-rule registry for <computed>. fields). */
-function buildCompositeTwinSchema(
+/** Build the composite's per-register readers: one reader per
+ *  decomposition target, delegating to the corresponding component's
+ *  TwinIo reader (or computing via the state-rule registry for
+ *  <computed>. targets). The GraphQL resolvers AND the REST projection
+ *  (the OpenAPI leg's runtime half) bind to THESE SAME functions — one
+ *  read path per register, two projections. */
+function buildCompositeReaders(
   decomposition: Record<string, string>,
   components: Map<string, ComponentSession>,
   stateRule: { name: string; args?: Record<string, unknown> },
-  contract: TwinContract,
-): GraphQLSchema {
+): Map<string, () => unknown> {
   const componentStateViews = new Map<string, ComponentStateView>()
   for (const [id, cs] of components) {
     const inst = cs.instrument as { operationalState?: () => string; state?: () => string }
@@ -225,15 +231,12 @@ function buildCompositeTwinSchema(
     })
   }
 
-  const queryFields: GraphQLFieldConfigMap<unknown, unknown> = {}
+  const readers = new Map<string, () => unknown>()
   for (const [target, source] of Object.entries(decomposition)) {
     const [componentId, registerName] = source.split('.')
     if (componentId === '<computed>' && registerName === 'state_rule') {
       // The computed composite state — read via the state-rule registry.
-      queryFields[target] = {
-        type: GraphQLString,
-        resolve: () => STATE_RULES.get(stateRule.name)!(componentStateViews, stateRule.args),
-      }
+      readers.set(target, () => STATE_RULES.get(stateRule.name)!(componentStateViews, stateRule.args))
       continue
     }
     const cs = components.get(componentId!)
@@ -243,11 +246,36 @@ function buildCompositeTwinSchema(
     // convention (auto-discovered in buildTwinIo). A SIGNING component's
     // quantity serves wrap in the signing act (spec §12 — the signature
     // covers the COMPONENT's declared aspect, the composite serves its
-    // components' attestations; the raw reader stays the couplers' and
-    // the stream's face).
+    // components' attestations; state/environmental serves carry no
+    // envelope — the channel's named limit — and the raw reader stays
+    // the couplers' and the stream's face).
+    const serve = cs.contract.serves.find(s => s.target === registerName)
+    if (cs.signing && serve && serve.target !== 'state' && serve.target !== 'environmental_context') {
+      const signing = cs.signing
+      readers.set(target, signedQuantityReader(
+        registerName!,
+        () => readComponentRegister(cs, registerName!) as RawServedQuantity,
+        signing,
+      ))
+    } else {
+      readers.set(target, () => readComponentRegister(cs, registerName!))
+    }
+  }
+  return readers
+}
+
+/** Build a composite twin schema over the shared per-register readers. */
+function buildCompositeTwinSchema(
+  decomposition: Record<string, string>,
+  components: Map<string, ComponentSession>,
+  contract: TwinContract,
+  readers: Map<string, () => unknown>,
+): GraphQLSchema {
+  const queryFields: GraphQLFieldConfigMap<unknown, unknown> = {}
+  for (const target of Object.keys(decomposition)) {
     queryFields[target] = {
       type: GraphQLString, // placeholder; the resolve returns whatever the reader yields
-      resolve: () => readComponentRegister(cs, registerName!),
+      resolve: readers.get(target)!,
     }
   }
 
@@ -288,9 +316,8 @@ function buildCompositeTwinSchema(
   // Rebuild each query field with the correct type (registers that come
   // from a kind contract inherit ServedQuantity; state/operationalState
   // are strings; environmental_context is an object). A signing
-  // component's quantity serves get the signed shape AND the signing
-  // resolver (state/environmental serves carry no envelope — the
-  // channel's named limit).
+  // component's quantity serves get the signed shape (the signing
+  // resolver was already bound in buildCompositeReaders).
   for (const [target, source] of Object.entries(decomposition)) {
     const [componentId, registerName] = source.split('.')
     if (componentId === '<computed>') continue
@@ -304,12 +331,6 @@ function buildCompositeTwinSchema(
       queryFields[target]!.type = EnvironmentalContext
     } else if (cs.signing) {
       queryFields[target]!.type = SignedServedQuantity
-      const signing = cs.signing
-      queryFields[target]!.resolve = signedQuantityReader(
-        registerName!,
-        () => readComponentRegister(cs, registerName!) as RawServedQuantity,
-        signing,
-      )
     } else {
       queryFields[target]!.type = ServedQuantity
     }
@@ -324,6 +345,55 @@ function buildCompositeTwinSchema(
   // surface is filled in by GraphQLSchema's standard introspection.
   void contract
   return new GraphQLSchema({ query: queryType })
+}
+
+/** The composite OpenAPI leg's per-serve return-schema overrides,
+ *  derived from the same component contracts the GraphQL leg types its
+ *  fields from. Only the shapes the target-name heuristic cannot infer
+ *  need an entry: the computed composite state (a bare string under a
+ *  camelCase target) and an Environment serve under a composite
+ *  spelling. */
+function compositeServeSchemas(
+  decomposition: Record<string, string>,
+  components: Map<string, ComponentSession>,
+): Record<string, Record<string, unknown>> {
+  const schemas: Record<string, Record<string, unknown>> = {}
+  for (const [target, source] of Object.entries(decomposition)) {
+    const [componentId, registerName] = source.split('.')
+    if (componentId === '<computed>') {
+      schemas[target] = { type: 'string', description: 'The computed composite state (the declared state rule).' }
+      continue
+    }
+    const cs = components.get(componentId!)
+    const serve = cs?.contract.serves.find(s => s.target === registerName)
+    if (!serve) continue
+    if (serve.target === 'state' && target !== 'state') {
+      schemas[target] = { type: 'string', description: 'The operational state.' }
+    } else if (serve.target === 'environmental_context' && target !== 'environmental_context') {
+      schemas[target] = { $ref: '#/components/schemas/Environment' }
+    }
+  }
+  return schemas
+}
+
+/** The composite OpenAPI leg's signed set: the decomposition targets
+ *  whose source component signs quantity serves (state/environmental
+ *  serves carry no envelope, matching the GraphQL leg). */
+function compositeSignedTargets(
+  decomposition: Record<string, string>,
+  components: Map<string, ComponentSession>,
+): Set<string> {
+  const signed = new Set<string>()
+  for (const [target, source] of Object.entries(decomposition)) {
+    const [componentId, registerName] = source.split('.')
+    if (componentId === '<computed>') continue
+    const cs = components.get(componentId!)
+    if (!cs?.signing) continue
+    const serve = cs.contract.serves.find(s => s.target === registerName)
+    if (!serve || serve.target === 'state' || serve.target === 'environmental_context') continue
+    signed.add(target)
+  }
+  return signed
 }
 
 /** Read one register from a component's TwinIo/instrument, returning the
@@ -705,14 +775,38 @@ export async function composeSession(
     throw new Error(`composite '${composite.manifest.id}': state rule '${composition.state_rule}' is not registered (known: ${[...STATE_RULES.keys()].join(', ')})`)
   }
 
-  // 3. Load the composite twin contract + build the composite twin schema.
+  // 3. Load the composite twin contract + build the composite twin
+  //    schema over the shared per-register readers.
   const contract = await loadCompositeContract(composite, composition.decomposition)
-  const twinSchema = buildCompositeTwinSchema(
+  const twinReaders = buildCompositeReaders(
     composition.decomposition,
     components,
     { name: composition.state_rule, args: composition.state_rule_args },
-    contract,
   )
+  const twinSchema = buildCompositeTwinSchema(
+    composition.decomposition,
+    components,
+    contract,
+    twinReaders,
+  )
+
+  // The OpenAPI leg (spec §12 §5.5) for the composite: the document
+  // GENERATES from the same assembled contract the GraphQL leg serves —
+  // one GET /registers/<target> per decomposition register, the
+  // composite's flat register namespace (the same names the composite
+  // Query fields carry; no per-instrument path prefixes — the
+  // decomposition map IS the composite's addressing). Per-serve shapes
+  // and signedness derive from the source components' contracts. The
+  // boot gates the document exactly as the single-instrument boot does:
+  // drift between the assembled contract and the document fails the boot.
+  const openApiDoc = generateTwinOpenApi(contract, {
+    signedTargets: compositeSignedTargets(composition.decomposition, components),
+    serveSchemas: compositeServeSchemas(composition.decomposition, components),
+  })
+  const openApiDiffs = checkOpenApiConformance(openApiDoc, contract)
+  if (openApiDiffs.length > 0) {
+    throw new Error(`composite '${composite.manifest.id}': twin OpenAPI conformance FAILED:\n  - ${openApiDiffs.join('\n  - ')}`)
+  }
 
   // 4. Build the composite world schema.
   const worldSchema = buildCompositeWorldSchema(components, clock)
@@ -730,6 +824,15 @@ export async function composeSession(
     title: `${composite.manifest.title} (composite SST)`,
     worldToken: opts.worldToken,
     corsOrigins: opts.corsOrigins,
+    openApiDoc,
+    twinRest: {
+      contract,
+      read: (target: string) => {
+        const reader = twinReaders.get(target)
+        if (!reader) throw new Error(`composite twin: no reader for declared serve '${target}' (law 2)`)
+        return reader()
+      },
+    },
     twinStream: {
       clock,
       targets: Object.keys(composition.decomposition),
