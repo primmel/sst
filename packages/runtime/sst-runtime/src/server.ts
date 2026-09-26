@@ -7,6 +7,9 @@ import { createYoga, createSchema, createGraphQLError, type Plugin } from 'graph
 import { GraphQLError, type DocumentNode, type GraphQLSchema } from 'graphql'
 import { readFile } from 'node:fs/promises'
 import { join, extname } from 'node:path'
+import type { TwinContract } from './twin-contract.js'
+import { readerFor, instrumentMirrorObject, type TwinIo } from './twin-schema.js'
+import { FRESH_WITHIN_HEADER } from './twin-openapi.js'
 
 export interface TwinStreamSource {
   /** The clock that drives indication updates. */
@@ -48,6 +51,14 @@ export interface SimServerOptions {
    *  Clients connect with `EventSource('/twin/stream?targets=indication,state')`.
    *  Each event: `{ target, value, servedAt, freshness }`. */
   twinStream?: TwinStreamSource | undefined
+  /** The OpenAPI twin leg (spec §12 §5.5): the generated OpenAPI 3.1
+   *  document, served at GET /openapi.json. */
+  openApiDoc?: Record<string, unknown> | undefined
+  /** The REST projection of the twin contract (the OpenAPI leg's
+   *  runtime half): GET /twin/registers/<target>, POST
+   *  /twin/operations/<op_id>, GET /twin/instrument — the same readers
+   *  the generated GraphQL resolvers bind to. */
+  twinRest?: { contract: TwinContract; io: TwinIo } | undefined
 }
 
 export interface SimServer {
@@ -200,6 +211,28 @@ export async function createSimServer(opts: SimServerOptions): Promise<SimServer
     if (url.pathname === '/twin/stream' && req.method === 'GET' && opts.twinStream) {
       return handleTwinStream(req as never, res as never, url, opts.twinStream)
     }
+    // ── The OpenAPI twin leg (spec §12 §5.5) ─────────────────────────
+    // GET /openapi.json answers the generated document; the REST
+    // projection rides /twin/registers/*, /twin/operations/*, and
+    // /twin/instrument — the same readers the GraphQL resolvers bind to.
+    if (url.pathname === '/openapi.json' && req.method === 'GET' && opts.openApiDoc) {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      return res.end(JSON.stringify(opts.openApiDoc, null, 2) + '\n')
+    }
+    if (opts.twinRest && req.method === 'GET' && url.pathname.startsWith('/twin/registers/')) {
+      return handleRestRegister(res, url.pathname.slice('/twin/registers/'.length), opts.twinRest)
+    }
+    if (opts.twinRest && req.method === 'POST' && url.pathname.startsWith('/twin/operations/')) {
+      return handleRestOperation(res, url.pathname.slice('/twin/operations/'.length), opts.twinRest)
+    }
+    if (opts.twinRest && req.method === 'GET' && url.pathname === '/twin/instrument') {
+      if (!opts.twinRest.contract.model) {
+        res.writeHead(404, { 'content-type': 'text/plain' })
+        return res.end('the contract carries no instrument model')
+      }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      return res.end(JSON.stringify(instrumentMirrorObject(opts.twinRest.contract.model, opts.twinRest.contract)) + '\n')
+    }
     if (url.pathname === '/world' || url.pathname.startsWith('/world/')) return worldYoga(req, res, { req: req as unknown as Request })
     if (url.pathname === '/twin' || url.pathname.startsWith('/twin/')) return twinYoga(req, res, { req: req as unknown as Request })
     // static bench or the landing page
@@ -302,4 +335,62 @@ function emitTwinEvent(
   const eventId = String(now)
   const data = JSON.stringify(payload)
   try { res.write(`id: ${eventId}\nevent: twin\ndata: ${data}\n\n`) } catch { /* closed */ }
+}
+
+
+interface RestResponse {
+  writeHead: (status: number, headers: Record<string, string>) => void
+  end: (body?: string) => void
+}
+
+/** GET /twin/registers/<target> — the REST projection of one declared
+ *  serve. The read goes through the SAME readerFor the GraphQL
+ *  resolver binds to (the signed-serve posture signs here too — the
+ *  reader is async under signing). The declared fresh_within bound
+ *  rides as the fresh-within-s response header. */
+async function handleRestRegister(
+  res: RestResponse,
+  target: string,
+  rest: { contract: TwinContract; io: TwinIo },
+): Promise<void> {
+  const serve = rest.contract.serves.find(s => s.target === target)
+  if (!serve) {
+    res.writeHead(404, { 'content-type': 'text/plain' })
+    res.end(`no declared serve for register '${target}'`)
+    return
+  }
+  try {
+    const value = await readerFor(target, rest.io)()
+    const headers: Record<string, string> = { 'content-type': 'application/json' }
+    if (serve.freshWithinS != null) headers[FRESH_WITHIN_HEADER] = String(serve.freshWithinS)
+    res.writeHead(200, headers)
+    res.end(JSON.stringify(value) + '\n')
+  } catch (err) {
+    res.writeHead(500, { 'content-type': 'text/plain' })
+    res.end((err as Error).message)
+  }
+}
+
+/** POST /twin/operations/<op_id> — the REST projection of one declared
+ *  command operation: the instrument-legal implementation runs first,
+ *  then the operational state answers (the GraphQL Mutation's shape). */
+function handleRestOperation(
+  res: RestResponse,
+  opId: string,
+  rest: { contract: TwinContract; io: TwinIo },
+): void {
+  const op = rest.contract.operations.find(o => o.id === opId && o.kind === 'command')
+  if (!op) {
+    res.writeHead(404, { 'content-type': 'text/plain' })
+    res.end(`no declared command operation '${opId}'`)
+    return
+  }
+  try {
+    rest.io.operations?.[op.id]?.()
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ state: rest.io.instrument.operationalState() }) + '\n')
+  } catch (err) {
+    res.writeHead(500, { 'content-type': 'text/plain' })
+    res.end((err as Error).message)
+  }
 }

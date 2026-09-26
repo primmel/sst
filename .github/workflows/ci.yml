@@ -130,6 +130,12 @@ jobs:
             -d '{"query":"mutation { advanceTime(seconds: 5) { groundTruth { appliedLoadKg lad { phase } } } }"}' > /tmp/lad.json
           grep -q '"phase":"holding"' /tmp/lad.json
           node -e "const g=require('/tmp/lad.json').data.advanceTime.groundTruth; if (Math.abs(g.appliedLoadKg-40) > 0.1) { console.error('realized load out of envelope:', g.appliedLoadKg); process.exit(1) }"
+          # The OpenAPI leg (spec §12 §5.5): the generated document is
+          # served, and its REST projection answers a register read and
+          # a command operation.
+          curl -s http://localhost:5290/openapi.json | grep -q '"openapi": "3.1.0"'
+          curl -s http://localhost:5290/twin/registers/indication | grep -q '"unit":"kg"'
+          curl -s -X POST http://localhost:5290/twin/operations/run_self_test | grep -q '"state"'
           echo "standalone boot + all surfaces OK"
       - name: drive a scripted console session
         working-directory: x/primmel/sst
