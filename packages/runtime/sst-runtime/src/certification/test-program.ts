@@ -70,10 +70,11 @@ export function executeTestProgram(
 }
 
 /** The canonical R 60-2 creep test program (30-minute test).
- *  Per R 60-2 §2.10.5: apply E_max, hold 5 min, then probe every
- *  5 min for 30 min. The creep limit is 0.7 × |MPE| over 30 min. */
+ *  Per R 60-2 §2.10.2: apply the maximum test load D_max (90–100 % of
+ *  E_max, §2.10.2.7), hold 5 min, then probe every 5 min for 30 min.
+ *  The creep limit is 0.7 × |MPE| over 30 min. */
 export const R60_CREEP_TEST: TestProgram = {
-  name: 'R 60-2 §2.10.5 creep test (30 min)',
+  name: 'R 60-2 §2.10.2 creep test (30 min)',
   steps: [
     { description: 'Apply load (E_max)', loadKg: 500, advanceS: 300, probe: true },
     { description: 'Hold 5 min', advanceS: 300, probe: true },
@@ -85,9 +86,11 @@ export const R60_CREEP_TEST: TestProgram = {
   ],
 }
 
-/** The canonical R 60-2 repeatability test. */
+/** The canonical R 60-2 repeatability test (part of the measurement
+ *  error / repeatability test, §2.10.1; the repeatability error is
+ *  determined per §2.10.1.15). */
 export const R60_REPEATABILITY_TEST: TestProgram = {
-  name: 'R 60-2 repeatability test',
+  name: 'R 60-2 §2.10.1 repeatability test',
   steps: [
     { description: 'Load 1', loadKg: 100, advanceS: 60, probe: true },
     { description: 'Load 2', loadKg: 100, advanceS: 60, probe: true },
@@ -98,9 +101,11 @@ export const R60_REPEATABILITY_TEST: TestProgram = {
   ],
 }
 
-/** A temperature-effect test (R 60-2 §2.10.6). */
+/** A temperature-effect test — the temperature program of the R 60-2
+ *  measurement-error/repeatability test (§2.10.1.13: repeat the
+ *  operations at the higher, then the lower temperature). */
 export const R60_TEMPERATURE_TEST: TestProgram = {
-  name: 'R 60-2 temperature effect test',
+  name: 'R 60-2 §2.10.1.13 temperature effect test',
   steps: [
     { description: 'Baseline at 20 °C', loadKg: 200, temperatureDegC: 20, advanceS: 120, probe: true },
     { description: 'Sweep to -10 °C', temperatureDegC: -10, advanceS: 600, probe: true },
