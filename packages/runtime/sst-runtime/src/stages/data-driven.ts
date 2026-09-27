@@ -207,11 +207,16 @@ function makeR60Mechanical(profileKey: string): StageFactory {
       // (the creep-fail sample's whole point): creep_coefficient and
       // creep_tau_s come from the package when present, else the
       // profile's class values — the same coeff() discipline as the
-      // transduction/conditioning factories.
+      // transduction/conditioning factories. The slow pair
+      // (creep_slow_coefficient / creep_slow_tau_s) defaults to 0 — a
+      // package that declares neither gets the single-component law,
+      // byte-identical to before the slow term existed.
       const profile = {
         ...base,
         creepCoefficient: coeff(c, 'creep_coefficient', base.creepCoefficient),
         creepTauS: coeff(c, 'creep_tau_s', base.creepTauS),
+        creepSlowCoefficient: coeff(c, 'creep_slow_coefficient', base.creepSlowCoefficient ?? 0),
+        creepSlowTauS: coeff(c, 'creep_slow_tau_s', base.creepSlowTauS ?? 0),
       }
       const stage = new MechanicalStage(profile, mulberry32(seed))
       const atCapacity = (c['capacity_kg'] ?? 500) * profile.complianceKgPerMm

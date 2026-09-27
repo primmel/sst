@@ -102,10 +102,24 @@ async function loadSample(
     join(root, 'samples', sampleRef),
     join(root, 'samples', `${sampleRef}.yaml`),
   ]
-  // Also try matching against the samples list.
+  // Also try matching against the manifest's samples list. An EXACT
+  // name match always wins: with samples/creep-fail.yaml and
+  // samples/creep-fail-001.yaml both declared, the ref "creep-fail"
+  // resolves creep-fail.yaml — never the longer name that merely
+  // contains it. The historical substring match remains as the
+  // fallback for partial refs ("aged" → samples/aged-2024.yaml).
   if (samples) {
-    for (const s of samples) {
-      if (s.includes(sampleRef)) candidates.unshift(join(root, s))
+    const exact = samples.filter(
+      (s) => s === sampleRef
+        || s === `${sampleRef}.yaml`
+        || s === `samples/${sampleRef}.yaml`
+        || s.replace(/\.yaml$/, '').split('/').pop() === sampleRef,
+    )
+    const matches = exact.length > 0
+      ? exact
+      : samples.filter((s) => s.includes(sampleRef))
+    for (const s of matches) {
+      candidates.unshift(join(root, s))
     }
   }
   for (const p of candidates) {
