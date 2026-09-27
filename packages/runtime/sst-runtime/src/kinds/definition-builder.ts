@@ -60,9 +60,24 @@ export async function buildInstanceDefinition(input: DefinitionBuildInput): Prom
 
 interface SampleData {
   sample_name?: string
+  serial_number?: string
   kind_scenario?: string
   overrides?: Record<string, unknown>
   fidelity?: Record<string, unknown>
+}
+
+/** The booted sample's serial number, if the sample declares one. The
+ *  boot mirrors it into the twin's identification block (the twin IS
+ *  the sampled unit; the serial travels with the sample's chain of
+ *  custody). */
+export async function readSampleSerial(
+  instance: LoadedPackage,
+  sampleRef?: string,
+): Promise<string | undefined> {
+  const sampleData = sampleRef
+    ? await loadSample(instance.rootPath, sampleRef, instance.manifest.samples)
+    : await loadDefaultSample(instance.rootPath, instance.manifest.samples)
+  return sampleData?.serial_number
 }
 
 async function loadDefaultSample(
