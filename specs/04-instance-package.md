@@ -46,6 +46,9 @@ mechanical:
   hysteresis_class: 0.45
   creep_coefficient: 3.0e-4
   creep_tau_s: 300
+  creep_slow_coefficient: 0       # optional secondary (slow) retardation —
+  creep_slow_tau_s: 0             # the long tail the R 60-1 §5.5.1 20–30 min
+                                  # band judges; 0/absent = single-component law
   resonant_hz: 250
   off_center_sensitivity: 0.001
 

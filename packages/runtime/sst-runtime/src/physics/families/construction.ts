@@ -10,6 +10,17 @@ export interface ConstructionProfile {
   creepCoefficient: number
   /** creep exponential approach constant, seconds. */
   creepTauS: number
+  /**
+   * Secondary (slow) creep component — the long-retardation tail of the
+   * viscoelastic spectrum. Optional; absent means the element settles
+   * with creepTauS alone. A cell that passes the settled-creep allowance
+   * yet walks through the R 60-1 §5.5.1 20–30 minute band carries this
+   * term: the primary component saturates within minutes, the slow one
+   * keeps the indication moving through the judged window.
+   */
+  creepSlowCoefficient?: number
+  /** slow-creep exponential approach constant, seconds. */
+  creepSlowTauS?: number
   /** first resonance (informational in v1). */
   resonantHz: number
   /** off-center loading sensitivity (informational in v1). */

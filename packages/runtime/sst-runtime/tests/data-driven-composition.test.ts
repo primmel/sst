@@ -170,4 +170,62 @@ describe('TODO 23 — data-driven stage composition', () => {
     }
     expect(Math.abs(dataDriven.indication().value - legacy.indication().value)).toBeLessThan(1e-6)
   })
+
+  it('the slow creep coefficients plumb through the mechanical factory — the 20–30 min band walks', () => {
+    // The failing creep profile's shape: a fast primary component
+    // (0.004, τ = 120 s — saturated by minute 10) plus the slow tail
+    // (0.002, τ = 2400 s) the R 60-1 §5.5.1 20–30 minute band judges.
+    const chain = loadPhysicsChain(R60_CHAIN_PATH)
+    const coeffs = {
+      ...COEFFS,
+      noise_sigma_kg: 0, // the assert reads the served indication — keep it deterministic
+      creep_coefficient: 0.004,
+      creep_tau_s: 120,
+      creep_slow_coefficient: 0.002,
+      creep_slow_tau_s: 2400,
+    }
+    const clock = new VirtualClock()
+    const inst = new ComposedInstrument({
+      classification: COMPRESSION_DIGITAL,
+      coefficients: coeffs,
+      physicsChain: chain,
+    }, clock, 42)
+
+    inst.placeMass(500)
+    clock.advance(1200) // t = 20 min
+    const at20 = inst.indication().value
+    clock.advance(600) // t = 30 min
+    const at30 = inst.indication().value
+
+    // Analytic band drift: 500 × 0.002 × (e^−0.5 − e^−0.75) ≈ 0.134 kg.
+    // The served value quantizes to the 0.05 kg scale interval.
+    const expected = 500 * 0.002 * (Math.exp(-1200 / 2400) - Math.exp(-1800 / 2400))
+    expect(at30 - at20).toBeCloseTo(expected, 1)
+    expect(at30 - at20).toBeGreaterThan(0.05)
+  })
+
+  it('without the slow coefficients the 20–30 min band holds (the single-component law)', () => {
+    // The same fast primary alone saturates long before t20: t30 − t20
+    // stays within one scale interval — a settled instrument.
+    const chain = loadPhysicsChain(R60_CHAIN_PATH)
+    const coeffs = {
+      ...COEFFS,
+      noise_sigma_kg: 0,
+      creep_coefficient: 0.004,
+      creep_tau_s: 120,
+    }
+    const clock = new VirtualClock()
+    const inst = new ComposedInstrument({
+      classification: COMPRESSION_DIGITAL,
+      coefficients: coeffs,
+      physicsChain: chain,
+    }, clock, 42)
+
+    inst.placeMass(500)
+    clock.advance(1200)
+    const at20 = inst.indication().value
+    clock.advance(600)
+    const at30 = inst.indication().value
+    expect(Math.abs(at30 - at20)).toBeLessThanOrEqual(0.05)
+  })
 })
