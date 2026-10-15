@@ -92,11 +92,29 @@ const result = await build({
   platform: 'neutral',
   format: 'esm',
   target: 'es2022',
+  // The fetch-API layers (graphql-yoga → @whatwg-node/*) resolve their
+  // workerd/browser builds; workerd provides the fetch globals natively.
+  mainFields: ['workerd', 'browser', 'module', 'main'],
+  conditions: ['workerd', 'worker', 'browser', 'module'],
   outfile: new URL('../dist/worker.js', import.meta.url).pathname,
   sourcemap: true,
   legalComments: 'none',
   external: ['node:*'],
-  alias: { module: 'node:module' },
+  // The behavior bundles' createRequire banner imports 'module' (bare).
+  // The shim routes `require('process')` to the workerd global (the
+  // module registry lacks node:process while the global exists) and
+  // delegates everything else to the native createRequire. Only the
+  // bare specifier is aliased — the shim's own 'node:module' import
+  // must stay native.
+  alias: {
+    module: new URL('./stubs/node-module-shim.js', import.meta.url).pathname,
+  },
+  // workerd leaves `import.meta.url` undefined in bundled workers; the
+  // runtime's module-level path math (session/boot.ts, library-paths.ts)
+  // only needs A valid file URL to compute constants it never uses on
+  // the bundle path — and the behavior bundle's createRequire needs a
+  // URL-shaped base too.
+  define: { 'import.meta.url': '"file:///sst-worker/worker.js"' },
   plugins: [sstLibraryBundlePlugin],
   logLevel: 'info',
 })

@@ -32,7 +32,7 @@ function bootedSession(bundle: SessionBundle, env: Record<string, string>): { se
 describe('SimSession (the DO lifecycle)', () => {
   it('boots lazily on the first request and re-arms the idle alarm', async () => {
     const bundle = syntheticBundle()
-    const { session, boots } = bootedSession(bundle, { corsOrigins: 'https://demo.example' })
+    const { session, boots } = bootedSession(bundle, { SST_CORS_ORIGINS: 'https://demo.example' })
     expect(boots()).toBe(0)
     const res = await session.fetch(new Request('http://do.local/twin/instrument'))
     expect(res.status).toBe(200)

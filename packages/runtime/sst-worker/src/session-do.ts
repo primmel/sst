@@ -12,17 +12,21 @@ import {
   bootBundleSession,
   type SessionBundle,
 } from '@primmel/sst-runtime/session/boot-bundle'
-import { createSessionHandler, type SessionEnvConfig, type SessionHandler } from './worker-core.js'
+import { createSessionHandler, type SessionHandler } from './worker-core.js'
 
 /** The idle lifetime of a session (seconds) — the SST_SESSION_IDLE_S
  *  var, default 30 minutes. */
 export const DEFAULT_IDLE_S = 1800
 
-/** The deployment env the session reads (the node bins read the same
- *  names from process.env). */
-export interface SimSessionEnv extends SessionEnvConfig {
+/** The deployment env the session reads — the WRANGLER var names (the
+ *  node bins read the same names from process.env). */
+export interface SimSessionEnv {
+  /** CORS origins for browser clients (comma-separated or '*'). */
+  SST_CORS_ORIGINS?: string | undefined
+  /** Bearer token guarding /world mutations. */
+  SIM_WORLD_TOKEN?: string | undefined
   /** '1'/'true' → the manifest's `signing:` block activates (the
-   *  bundle-native face of SST_SIGNED_SERVE). */
+   *  bundle-native face of the node bins' SST_SIGNED_SERVE env). */
   SST_SIGNED_SERVE?: string | undefined
   /** Session idle lifetime in seconds (default 1800). */
   SST_SESSION_IDLE_S?: string | undefined
@@ -58,8 +62,8 @@ export class SimSession {
     const signedServe = this.#env.SST_SIGNED_SERVE === '1' || this.#env.SST_SIGNED_SERVE === 'true'
     const session = await bootBundleSession(this.#loadBundle(), signedServe ? { signedServe } : {})
     return createSessionHandler(session, {
-      corsOrigins: this.#env.corsOrigins,
-      worldToken: this.#env.worldToken,
+      corsOrigins: this.#env.SST_CORS_ORIGINS,
+      worldToken: this.#env.SIM_WORLD_TOKEN,
     })
   }
 
