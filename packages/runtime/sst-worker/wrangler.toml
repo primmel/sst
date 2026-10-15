@@ -23,15 +23,24 @@ command = "npm run build"
 name = "SIM_SESSION"
 class_name = "DemoSimSession"
 
+[[durable_objects.bindings]]
+name = "SIM_REGISTRY"
+class_name = "SimRegistryDO"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["DemoSimSession"]
 
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["SimRegistryDO"]
+
 [vars]
-# CORS for the browser pages that drive the twin cross-origin. The
-# staging platform's origin; extend the comma list when a new consumer
-# ships (the node server's exact matcher runs here — port-less entries
-# match any port on the host).
+# CORS for the browser pages that drive the twin cross-origin — the
+# SAME list gates the /sims spawn API. The staging platform's origin;
+# extend the comma list when a new consumer ships (the node server's
+# exact matcher runs here — port-less entries match any port on the
+# host).
 SST_CORS_ORIGINS = "https://staging-demo.oimlsmart.org"
 
 # The signed-serve posture (spec 12, opt-in): the bundled instance's
@@ -41,13 +50,17 @@ SST_CORS_ORIGINS = "https://staging-demo.oimlsmart.org"
 # platform reads SIGNED, FRESH values.
 SST_SIGNED_SERVE = "1"
 
-# One DO instance per simulation session; this deployment hosts the
-# demo instrument (the LC-500 fresh sample, serial LC500-001).
+# The canonical standing twin's DO id name (the root URL's instance —
+# the seed contract; the spawner never moves it).
 SST_SESSION_ID = "lc500-fresh"
 
 # Idle sessions expire honestly (the alarm drops the in-memory state);
 # the platform's Connect stage re-establishes a fresh boot. 30 minutes.
 SST_SESSION_IDLE_S = "1800"
+
+# The spawner's cap: concurrent SPAWNED sims (the standing twins never
+# count). An over-cap spawn refuses honestly naming the cap.
+SST_MAX_CONCURRENT_SIMS = "10"
 
 # SIM_WORLD_TOKEN: deliberately unset. The framework's doctrine says
 # non-local deployments SHOULD set it, but the smart platform's browser

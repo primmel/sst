@@ -21,8 +21,7 @@ function fakeState(): { state: DurableObjectState; alarms: number[] } {
   return { state, alarms }
 }
 
-/** A SimSession over the synthetic bundle, counting boots. */
-function bootedSession(bundle: SessionBundle, env: Record<string, string>): { session: SimSession; boots: () => number } {
+/** A SimSession over the synthetic bundle, counting boots. */function bootedSession(bundle: SessionBundle, env: Record<string, string>): { session: SimSession; boots: () => number } {
   let count = 0
   const { state } = fakeState()
   const session = new SimSession(state, env, () => { count++; return bundle })

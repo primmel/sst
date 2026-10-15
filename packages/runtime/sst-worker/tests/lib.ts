@@ -42,10 +42,20 @@ export function syntheticBehaviorModule(): unknown {
   return { create }
 }
 
+/** The physics selection mirrors the real bundle's sample menu: each
+ *  named profile answers its own sample_name + serial. */
+const SYNTHETIC_SERIALS: Record<string, string> = {
+  fresh: 'SYN-001',
+  'creep-fail': 'SYN-002',
+  'creep-fail-001': 'SYN-001',
+}
+
 /** The synthetic bundle: a complete instance+kind pair small enough to
  *  read in one screen — manifest, coefficients, SDL, mapping, handlers,
  *  baked contract, behavior. No library checkout needed. */
-export function syntheticBundle(): SessionBundle {
+export function syntheticBundle(select: { physics?: string } = {}): SessionBundle {
+  const physics = select.physics ?? 'fresh'
+  const serial = SYNTHETIC_SERIALS[physics] ?? `SYN-${physics}`
   const manifest = {
     sst_version: '1.0',
     tier: 'primmel-instance' as const,
@@ -72,10 +82,10 @@ export function syntheticBundle(): SessionBundle {
         '  scale_interval_kg: 0.01',
       ].join('\n'),
       sampleYaml: [
-        'sample_name: fresh',
-        'serial_number: SYN-001',
+        `sample_name: ${physics}`,
+        `serial_number: ${serial}`,
       ].join('\n'),
-      sampleRef: 'fresh',
+      sampleRef: physics,
     },
     kind: {
       worldKindSdl: [
