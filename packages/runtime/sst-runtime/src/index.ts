@@ -119,3 +119,11 @@ export { parseCommand, PRIVILEGED_KINDS, HELP_TEXT, type ConsoleAction } from '.
 export { execute, httpConsoleIo, promptOf, type ConsoleIo, type ConsoleState } from './console/client.js'
 export { runConsole } from './console/readline.js'
 export { LC500_TOUR } from './console/tour.js'
+
+// ── Framework: bundle-native boot (the worker adapter's boot) ────────
+export {
+  bootBundleSession,
+  type SessionBundle,
+  type BundleSession,
+  type BundleSessionOptions,
+} from './session/boot-bundle.js'

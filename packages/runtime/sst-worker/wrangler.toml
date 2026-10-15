@@ -1,0 +1,58 @@
+# wrangler.toml — the SST sim-twin worker deployment.
+#
+# The adapter: packages/runtime/sst-worker — one Durable Object per
+# simulation session, answering the same HTTP surface the node server
+# answers (the platform's stage machine is proven against that surface).
+# The instance package (acme-lc500) is bundled at build time from the
+# DECLARED library checkout (SST_LIBRARY_PATH) — see scripts/build.mjs.
+#
+# DEPLOYMENT RULE (the 2026-08-15 lesson): NEVER put routes in this
+# file. Deployed routes would be stolen by every later `wrangler deploy`
+# from any environment. The custom domain (sst.oimlsmart.org) is
+# attached via the Workers Domains API, once, outside this file.
+
+name = "sst-lc500-twin"
+main = "dist/worker.js"
+compatibility_date = "2025-09-22"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "npm run build"
+
+[[durable_objects.bindings]]
+name = "SIM_SESSION"
+class_name = "DemoSimSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DemoSimSession"]
+
+[vars]
+# CORS for the browser pages that drive the twin cross-origin. The
+# staging platform's origin; extend the comma list when a new consumer
+# ships (the node server's exact matcher runs here — port-less entries
+# match any port on the host).
+SST_CORS_ORIGINS = "https://staging-demo.oimlsmart.org"
+
+# The signed-serve posture (spec 12, opt-in): the bundled instance's
+# `signing:` block activates — every served quantity carries the
+# device's ECDSA P-256 signature, and the freshness window rides the
+# fresh_within_s response header. This is the demo's posture: the
+# platform reads SIGNED, FRESH values.
+SST_SIGNED_SERVE = "1"
+
+# One DO instance per simulation session; this deployment hosts the
+# demo instrument (the LC-500 fresh sample, serial LC500-001).
+SST_SESSION_ID = "lc500-fresh"
+
+# Idle sessions expire honestly (the alarm drops the in-memory state);
+# the platform's Connect stage re-establishes a fresh boot. 30 minutes.
+SST_SESSION_IDLE_S = "1800"
+
+# SIM_WORLD_TOKEN: deliberately unset. The framework's doctrine says
+# non-local deployments SHOULD set it, but the smart platform's browser
+# stage machine drives /world mutations WITHOUT a bearer header (it is
+# proven against the open local sim). Setting the token here would 401
+# every demo calibration. The access control for this deployment is
+# CORS (only the declared origins may drive it from a browser). Revisit
+# with the platform owner when the driver learns to send the bearer.

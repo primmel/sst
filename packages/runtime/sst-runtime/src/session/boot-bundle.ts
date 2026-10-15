@@ -31,7 +31,7 @@ import { behaviorFromModule, type LoadedBehavior } from '../kinds/behavior-loade
 import { parsePhysicsChainText, type InstanceClassification } from '../stages/data-driven.js'
 import { enrichContractWithModel, flattenCoefficients, readTwinTarget, resolveBootSigning } from './boot.js'
 import type { TwinContract, InstrumentModel } from '../twin-contract.js'
-import type { ServeSigningDecl, ServeSigning } from '../twin/serve-signing.js'
+import { resolveServeSigning, type ServeSigningDecl, type ServeSigning } from '../twin/serve-signing.js'
 
 /** The kind's mutation-handler signature (the world handlers' shape,
  *  untyped here — the bundle carries them as functions). */
@@ -230,11 +230,12 @@ export async function bootBundleSession(
 
 /** The signing resolution (the FS path's resolveBootSigning with the
  *  env knob carried as an explicit option — a worker has no process.env
- *  to read). */
+ *  to read; a programmatic declaration ACTIVATES directly, the same
+ *  doctrine as SessionOptions.signing). */
 async function resolveBundleSigning(
   manifestDecl: ServeSigningDecl | undefined,
   opts: BundleSessionOptions,
 ): Promise<ServeSigning | undefined> {
   const decl = opts.signing ?? (opts.signedServe ? manifestDecl : undefined)
-  return decl ? resolveBootSigning(decl, undefined) : undefined
+  return decl ? resolveServeSigning(decl) : undefined
 }

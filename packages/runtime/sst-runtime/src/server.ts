@@ -114,8 +114,9 @@ export function corsOriginAllowed(configured: string, requestOrigin: string): bo
 }
 
 /** The operation type the request will execute, honoring operationName
- *  the way graphql-js selects it (absent → the single operation). */
-function operationTypeOf(document: DocumentNode, operationName: string | null | undefined): string | undefined {
+ *  the way graphql-js selects it (absent → the single operation).
+ *  (Shared with the worker adapter.) */
+export function operationTypeOf(document: DocumentNode, operationName: string | null | undefined): string | undefined {
   for (const def of document.definitions) {
     if (def.kind !== 'OperationDefinition') continue
     if (operationName == null || def.name?.value === operationName) return def.operation
@@ -123,9 +124,9 @@ function operationTypeOf(document: DocumentNode, operationName: string | null | 
   return undefined
 }
 
-/** The Authorization header off the raw node request (the yoga context
- *  carries the IncomingMessage — see the cast in createServer below). */
-function authorizationOf(req: unknown): string | undefined {
+/** The Authorization header off a request view (the node request in the
+ *  node server, a plain header view in the worker adapter). */
+export function authorizationOf(req: unknown): string | undefined {
   const header = (req as { headers?: { authorization?: string | string[] } } | null)?.headers?.authorization
   return Array.isArray(header) ? header[0] : header
 }
@@ -133,8 +134,10 @@ function authorizationOf(req: unknown): string | undefined {
 /** The /world mutation guard (TODO.v2/11): an envelop plugin at the
  *  transport edge — never in the physics. A mutation without the
  *  bearer token is rejected 401 before any resolver runs; queries
- *  (and named-operation documents selecting a query) pass through. */
-function worldMutationGuard(token: string): Plugin<{ req: Request }> {
+ *  (and named-operation documents selecting a query) pass through.
+ *  (Shared with the worker adapter — the same guard rides both
+ *  transports.) */
+export function worldMutationGuard(token: string): Plugin<{ req: Request }> {
   return {
     onExecute({ args }) {
       if (operationTypeOf(args.document, args.operationName) !== 'mutation') return
