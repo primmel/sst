@@ -9,10 +9,10 @@ declare module 'sst-library-bundle' {
     instanceManifestYaml: string
     /** coefficients.yaml text. */
     coefficientsYaml: string
-    /** The resolved sample's YAML text (prefer `fresh`). */
-    sampleYaml?: string | undefined
-    /** The requested sample ref (bare name). */
-    sampleRef?: string | undefined
+    /** EVERY sample the manifest lists, keyed by bare ref
+     *  (fresh → samples/fresh.yaml's text) — the spawner's physics
+     *  profiles. */
+    sampleYamls: Record<string, string>
     /** The kind's world-kind.sdl.graphql text. */
     worldKindSdl: string
     /** The kind's world-kind.yaml text. */

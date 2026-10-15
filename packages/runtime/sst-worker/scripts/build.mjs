@@ -25,24 +25,30 @@ const instanceDir = join(libRoot, 'packages', 'instances', INSTANCE_ID)
 const kindDir = join(libRoot, 'packages', 'kinds', KIND_FOLDER)
 const manifest = parseYaml(await readFile(join(instanceDir, 'package.sst.yaml'), 'utf-8'))
 const samples = manifest.samples ?? []
-const fresh = samples.find((s) => s.includes('fresh')) ?? samples[0]
-if (!fresh) {
+if (samples.length === 0) {
   console.error(`instance '${INSTANCE_ID}' declares no samples — nothing to bundle`)
   process.exit(2)
 }
-const sampleRef = fresh.replace(/^samples\//, '').replace(/\.yaml$/, '')
+// Every sample rides the bundle — the spawner's physics profiles keyed
+// by bare ref ('fresh' → samples/fresh.yaml).
+const sampleEntries = samples.map((listed) => {
+  const bare = listed.replace(/^samples\//, '').replace(/\.yaml$/, '')
+  return { bare, listed }
+})
 
 const p = (s) => JSON.stringify(s)
 
 // The virtual module: the library content, as imports (the texts ride
 // esbuild's text/json loaders below; the behavior + handlers are real
 // modules that join the bundle).
+const sampleImports = sampleEntries.map((s, i) => `import sample${i} from ${p(join(instanceDir, s.listed))};`).join('\n')
+const sampleMap = sampleEntries.map((s, i) => `  ${p(s.bare)}: sample${i},`).join('\n')
 const virtualModule = /* js */ `
 import * as behavior from ${p(join(instanceDir, manifest.behavior ?? 'behavior.js'))};
 import { handlers } from ${p(join(kindDir, 'handlers.ts'))};
 import instanceManifestYaml from ${p(join(instanceDir, 'package.sst.yaml'))};
 import coefficientsYaml from ${p(join(instanceDir, manifest.coefficients ?? 'coefficients.yaml'))};
-import sampleYaml from ${p(join(instanceDir, fresh))};
+${sampleImports}
 import worldKindSdl from ${p(join(kindDir, 'world-kind.sdl.graphql'))};
 import worldKindYaml from ${p(join(kindDir, 'world-kind.yaml'))};
 import mpeYaml from ${p(join(kindDir, 'mpe.yaml'))};
@@ -52,8 +58,9 @@ import twinContractJson from ${p(join(kindDir, 'twin', `${KIND_FOLDER.replace(/^
 export const libraryBundle = {
   instanceManifestYaml,
   coefficientsYaml,
-  sampleYaml,
-  sampleRef: ${p(sampleRef)},
+  sampleYamls: {
+${sampleMap}
+  },
   worldKindSdl,
   worldKindYaml,
   handlers,
@@ -124,4 +131,4 @@ if (warnings.length > 0) {
   console.error('build warnings:')
   for (const w of warnings) console.error('  -', w.text)
 }
-console.log(`bundled ${INSTANCE_ID} (${sampleRef}) from ${libRoot} → dist/worker.js`)
+console.log(`bundled ${INSTANCE_ID} (profiles: ${sampleEntries.map((s) => s.bare).join(', ')}) from ${libRoot} → dist/worker.js`)
