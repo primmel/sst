@@ -404,7 +404,7 @@ function registryView(rec: SimRecord & { url_path?: string }, origin: string, st
     physics: rec.physics,
     state,
     url,
-    world_console_url: `${url}/world`,
+    world_console_url: `${url.replace(/\/$/, '')}/world`,
     expires_at: rec.expires_at || null,
     standing: rec.standing,
   }
