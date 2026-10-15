@@ -107,7 +107,7 @@ interface NestedCoefficients {
 /** Flatten the nested coefficients.yaml shape (mechanical/transduction/
  *  conditioning sections) into the flat keys ComposedInstrument expects
  *  (sensitivity_mVperV, scale_interval_kg, etc.). */
-function flattenCoefficients(nested: NestedCoefficients): Record<string, number> {
+export function flattenCoefficients(nested: NestedCoefficients): Record<string, number> {
   const flat: Record<string, number> = {}
   for (const section of ['mechanical', 'transduction', 'conditioning'] as const) {
     const s = nested[section]
@@ -164,7 +164,12 @@ function bipmUriForUnit(slug: string | undefined): string {
 }
 
 function buildModelFromManifest(pkg: LoadedPackage, kindId: string): InstrumentModel {
-  const m = pkg.manifest
+  return buildModelFromManifestFields(pkg.manifest, kindId)
+}
+
+/** The model builder's pure half (the bundle-native boot feeds the
+ *  manifest object directly — no LoadedPackage wrapper needed). */
+export function buildModelFromManifestFields(m: LoadedPackage['manifest'], kindId: string): InstrumentModel {
   return {
     identification: {
       instrumentId: m.id,
@@ -206,9 +211,21 @@ function enrichWithModel(
   pkg: LoadedPackage,
   kindDirPath: string,
 ): TwinContract & { model: InstrumentModel } {
-  const kindId = pkg.manifest.kind ?? base.instrumentId
-  const model = buildModelFromManifest(pkg, kindId)
-  model.metrologicalLimits = loadMetrologicalLimits(kindDirPath, pkg)
+  const mpePath = join(kindDirPath, 'mpe.yaml')
+  const mpeText = existsSync(mpePath) ? readFileSyncMpe(mpePath) : undefined
+  return enrichContractWithModel(base, pkg.manifest, mpeText)
+}
+
+/** The enrichment's pure half (the bundle-native boot feeds the bundled
+ *  mpe.yaml text — no file to read). */
+export function enrichContractWithModel(
+  base: TwinContract,
+  manifest: LoadedPackage['manifest'],
+  mpeText?: string,
+): TwinContract & { model: InstrumentModel } {
+  const kindId = manifest.kind ?? base.instrumentId
+  const model = buildModelFromManifestFields(manifest, kindId)
+  model.metrologicalLimits = metrologicalLimitsFromMpeText(mpeText, manifest)
   return { ...base, model }
 }
 
@@ -218,22 +235,32 @@ function enrichWithModel(
 function loadMetrologicalLimits(kindDirPath: string, pkg: LoadedPackage): MetrologicalLimits | undefined {
   const mpePath = join(kindDirPath, 'mpe.yaml')
   if (!existsSync(mpePath)) return undefined
+  return metrologicalLimitsFromMpeText(readFileSyncMpe(mpePath), pkg.manifest)
+}
+
+/** The mpe translation's pure half: parse the mpe.yaml text and derive
+ *  the metrological limits for the manifest's accuracy class. */
+export function metrologicalLimitsFromMpeText(
+  mpeText: string | undefined,
+  manifest: LoadedPackage['manifest'],
+): MetrologicalLimits | undefined {
+  if (mpeText == null) return undefined
   let parsed: unknown
   try {
-    parsed = parseYaml(readFileSyncMpe(mpePath))
+    parsed = parseYaml(mpeText)
   } catch {
     return undefined
   }
   // vMin: derive from the instance's design parameters (E_max - E_min) / n_lc.
-  const dp = pkg.manifest.design_parameters
+  const dp = manifest.design_parameters
   const eMax = typeof dp?.e_max?.value === 'number' ? dp.e_max.value : undefined
   const eMin = typeof dp?.e_min?.value === 'number' ? dp.e_min.value : undefined
-  const nLc = typeof pkg.manifest.classification?.n_lc === 'number' ? pkg.manifest.classification.n_lc : undefined
+  const nLc = typeof manifest.classification?.n_lc === 'number' ? manifest.classification.n_lc : undefined
   if (eMax == null || eMin == null || nLc == null) return undefined
   const vMin = (eMax - eMin) / nLc
   const config = parseMpeConfig(parsed as never, vMin)
-  const className = typeof pkg.manifest.classification?.accuracy_class === 'string'
-    ? pkg.manifest.classification.accuracy_class
+  const className = typeof manifest.classification?.accuracy_class === 'string'
+    ? manifest.classification.accuracy_class
     : 'C'
   const cls = config.classes[className] ?? config.classes['C']
   if (!cls) return undefined
@@ -399,8 +426,10 @@ export async function bootSession(
 }
 
 /** Read one twin target directly from the instrument (in-process, no HTTP).
- *  Used by the /twin/stream SSE endpoint for real-time monitoring. */
-function readTwinTarget(
+ *  Used by the /twin/stream SSE endpoint for real-time monitoring
+ *  (shared with the worker adapter — the stream answers the same bytes
+ *  on both transports). */
+export function readTwinTarget(
   target: string,
   instrument: unknown,
   twinIo: { instrument: unknown; registers?: Record<string, () => unknown> },

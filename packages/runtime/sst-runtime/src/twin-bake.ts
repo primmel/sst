@@ -24,8 +24,15 @@ export async function bakeTwinContract(contract: TwinContract, outFile: string, 
 
 export async function loadBakedContract(file: string): Promise<TwinContract> {
   const raw = JSON.parse(await readFile(file, 'utf-8')) as BakedContract
+  return loadBakedContractFromArtifact(raw, file)
+}
+
+/** The baked-contract loader's pure half: validate + unwrap an
+ *  already-parsed artifact (the bundle-native boot carries the baked
+ *  JSON as an import, not a file read). */
+export function loadBakedContractFromArtifact(raw: BakedContract, source = '(bundled)'): TwinContract {
   if (raw.format !== 'sim/baked-twin-contract' || raw.version !== 1) {
-    throw new Error(`not a baked twin contract (or wrong version): ${file}`)
+    throw new Error(`not a baked twin contract (or wrong version): ${source}`)
   }
   return raw.contract
 }

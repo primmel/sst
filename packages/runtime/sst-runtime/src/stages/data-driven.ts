@@ -328,9 +328,16 @@ registerR60Stages()
 /** Load a physics-chain.yaml from disk and return the parsed declaration. */
 export function loadPhysicsChain(filePath: string): PhysicsChainDecl {
   const text = readFileSync(resolve(filePath), 'utf-8')
+  return parsePhysicsChainText(text, filePath)
+}
+
+/** The chain loader's pure half: parse + validate a physics-chain
+ *  declaration from its YAML text (the bundle-native boot feeds the
+ *  bundled text — no file to read). */
+export function parsePhysicsChainText(text: string, source = 'physics-chain.yaml'): PhysicsChainDecl {
   const parsed = parseYaml(text) as PhysicsChainDecl
   if (!parsed || !Array.isArray(parsed.stages) || parsed.stages.length === 0) {
-    throw new Error(`physics-chain.yaml at ${filePath} has no stages`)
+    throw new Error(`physics-chain.yaml at ${source} has no stages`)
   }
   return parsed
 }

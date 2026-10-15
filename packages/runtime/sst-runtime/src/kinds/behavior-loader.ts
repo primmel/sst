@@ -77,12 +77,21 @@ export async function loadBehavior(
   }
 
   const mod = await import(pathToFileURL(sourcePath).href)
-  const exported = mod.default ?? mod
-  const create = typeof exported.create === 'function'
+  return behaviorFromModule(mod, sourcePath)
+}
+
+/** Validate an already-imported behavior module (the FS loader's core):
+ *  the same shape checks the file-path loader applies, applied to a
+ *  module the host imported itself (a bundle-native boot imports the
+ *  behavior statically — no filesystem to probe). */
+export function behaviorFromModule(mod: unknown, sourcePath: string): LoadedBehavior {
+  const m = (mod ?? {}) as Record<string, unknown>
+  const exported = (m.default ?? m) as Record<string, unknown>
+  const create = (typeof exported.create === 'function'
     ? exported.create
-    : typeof mod.create === 'function'
-      ? mod.create
-      : null
+    : typeof m.create === 'function'
+      ? m.create
+      : null) as LoadedBehavior['create'] | null
 
   if (!create) {
     throw new Error(
@@ -91,7 +100,7 @@ export async function loadBehavior(
     )
   }
 
-  const handlers = (exported.handlers ?? mod.handlers) as LoadedBehavior['handlers'] | undefined
+  const handlers = (exported.handlers ?? m.handlers) as LoadedBehavior['handlers'] | undefined
   if (handlers != null && typeof handlers !== 'object') {
     throw new Error(`behavior module at ${sourcePath}: handlers must be an object of functions`)
   }
@@ -106,14 +115,14 @@ export async function loadBehavior(
   return {
     create,
     ...(handlers ? { handlers } : {}),
-    ...(typeof (exported.twinRegisters ?? mod.twinRegisters) === 'function'
-      ? { twinRegisters: exported.twinRegisters ?? mod.twinRegisters }
+    ...(typeof (exported.twinRegisters ?? m.twinRegisters) === 'function'
+      ? { twinRegisters: (exported.twinRegisters ?? m.twinRegisters) as LoadedBehavior['twinRegisters'] }
       : {}),
-    ...(typeof (exported.twinOperations ?? mod.twinOperations) === 'function'
-      ? { twinOperations: exported.twinOperations ?? mod.twinOperations }
+    ...(typeof (exported.twinOperations ?? m.twinOperations) === 'function'
+      ? { twinOperations: (exported.twinOperations ?? m.twinOperations) as LoadedBehavior['twinOperations'] }
       : {}),
-    ...(exported.scene ?? mod.scene
-      ? { scene: exported.scene ?? mod.scene }
+    ...(exported.scene ?? m.scene
+      ? { scene: exported.scene ?? m.scene }
       : {}),
     sourcePath,
   }

@@ -45,20 +45,13 @@ export async function assembleWorldKind<I extends WorldInstrument, D>(
     throw new Error(`assembleWorldKind: no world-kind.sdl.graphql in ${kindDir}`)
   }
   const sdl = await readFile(sdlPath, 'utf-8')
-  const mutationFields = extractBlock(sdl, 'extend type Mutation')
-  const groundTruthFields = extractBlock(sdl, 'extend type GroundTruth')
-  const supportingTypes = extractSupportingTypes(sdl)
-  const groundTruthType = groundTruthFields
-    ? `type GroundTruth { ${groundTruthFields} }`
-    : ''
-  const types = [supportingTypes, groundTruthType].filter(Boolean).join('\n')
 
   // 2. Read the YAML — mutation → handler mapping.
   const yamlPath = join(kindDir, 'world-kind.yaml')
   if (!existsSync(yamlPath)) {
     throw new Error(`assembleWorldKind: no world-kind.yaml in ${kindDir}`)
   }
-  const yaml = parseYaml(await readFile(yamlPath, 'utf-8')) as {
+  const mapping = parseYaml(await readFile(yamlPath, 'utf-8')) as {
     mutations: Record<string, { handler: string }>
   }
 
@@ -68,11 +61,32 @@ export async function assembleWorldKind<I extends WorldInstrument, D>(
     throw new Error(`assembleWorldKind: no handlers.ts in ${kindDir}`)
   }
   const handlersModule = await import(pathToFileURL(handlersPath).href)
-  const handlers = handlersModule.handlers as Record<string, (ctx: WorldContext<I, D>, args: Record<string, unknown>) => void>
 
-  // 4. Wire mutations: each YAML entry maps a mutation name to a handler.
+  return composeWorldKindFromSources<I, D>({ sdl, mapping, handlers: handlersModule.handlers, scenarios })
+}
+
+/** Compose a WorldKind from the kind's already-loaded sources (the
+ *  assembler's core): the SDL text, the mutation→handler mapping, the
+ *  handlers module's exports, and the scenario registry. Pure — the
+ *  bundle-native boot feeds the same inputs from bundled texts. */
+export function composeWorldKindFromSources<I extends WorldInstrument, D>(sources: {
+  sdl: string
+  mapping: { mutations: Record<string, { handler: string }> }
+  handlers: Record<string, (ctx: WorldContext<I, D>, args: Record<string, unknown>) => void>
+  scenarios: WorldKind<I, D>['scenarios']
+}): WorldKind<I, D> {
+  const { sdl, mapping, handlers, scenarios } = sources
+  const mutationFields = extractBlock(sdl, 'extend type Mutation')
+  const groundTruthFields = extractBlock(sdl, 'extend type GroundTruth')
+  const supportingTypes = extractSupportingTypes(sdl)
+  const groundTruthType = groundTruthFields
+    ? `type GroundTruth { ${groundTruthFields} }`
+    : ''
+  const types = [supportingTypes, groundTruthType].filter(Boolean).join('\n')
+
+  // Wire mutations: each YAML entry maps a mutation name to a handler.
   const mutations: Record<string, (ctx: WorldContext<I, D>, args: Record<string, unknown>) => void> = {}
-  for (const [mutationName, { handler: handlerName }] of Object.entries(yaml.mutations)) {
+  for (const [mutationName, { handler: handlerName }] of Object.entries(mapping.mutations)) {
     const handler = handlers[handlerName]
     if (!handler) {
       throw new Error(
@@ -83,7 +97,7 @@ export async function assembleWorldKind<I extends WorldInstrument, D>(
     mutations[mutationName] = handler
   }
 
-  // 5. Compose the WorldKind.
+  // Compose the WorldKind.
   return {
     types,
     mutationFields,

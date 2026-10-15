@@ -29,11 +29,37 @@ export interface DefinitionBuildInput {
 /** Build the definition object for behavior.create(). */
 export async function buildInstanceDefinition(input: DefinitionBuildInput): Promise<Record<string, unknown>> {
   const { instance, coefficients, classification, physicsChain, sample } = input
-  const m = instance.manifest
 
   const sampleData = sample
-    ? await loadSample(instance.rootPath, sample, m.samples)
-    : await loadDefaultSample(instance.rootPath, m.samples)
+    ? await loadSample(instance.rootPath, sample, instance.manifest.samples)
+    : await loadDefaultSample(instance.rootPath, instance.manifest.samples)
+
+  return buildDefinitionFromParts({
+    manifest: instance.manifest,
+    coefficients,
+    classification: classification as Record<string, string | undefined>,
+    ...(sampleData ? { sampleData } : {}),
+    ...(physicsChain ? { physicsChain } : {}),
+    ...(sample ? { sampleRef: sample } : {}),
+  })
+}
+
+/** The definition builder's core (the FS loader's pure half): assemble
+ *  the behavior.create() definition from an already-loaded manifest +
+ *  coefficients + sample data. The bundle-native boot feeds the same
+ *  parts from bundled texts; the wire shape is identical. */
+export function buildDefinitionFromParts(input: {
+  manifest: LoadedPackage['manifest']
+  coefficients: Record<string, number>
+  classification: Record<string, string | undefined>
+  sampleData?: SampleData
+  physicsChain?: PhysicsChainDecl
+  /** The requested sample ref (the fallback when the sample YAML carries
+   *  no sample_name — same fallback the FS loader applies). */
+  sampleRef?: string
+}): Record<string, unknown> {
+  const { manifest: m, coefficients, classification, physicsChain } = input
+  const sampleData = input.sampleData
 
   const designParams = designParametersFromManifest(m.design_parameters)
   const classif = withCamelAliases(classification as Record<string, unknown>)
@@ -53,12 +79,12 @@ export async function buildInstanceDefinition(input: DefinitionBuildInput): Prom
     stack,
     coefficients: withCamelAliases(mergedCoefficients),
     fidelity: sampleData?.fidelity ?? {},
-    sample: sampleData?.sample_name ?? sample ?? 'fresh',
+    sample: sampleData?.sample_name ?? input.sampleRef ?? 'fresh',
     ...(physicsChain ? { physicsChain } : {}),
   }
 }
 
-interface SampleData {
+export interface SampleData {
   sample_name?: string
   serial_number?: string
   kind_scenario?: string

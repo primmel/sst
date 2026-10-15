@@ -89,8 +89,9 @@ const TWIN_PLACEHOLDER_MESSAGE = 'twin schema not generated/baked — pass twinS
 /** The CORS origin matcher: an exact entry matches the request origin; an
  *  entry WITHOUT a port ('http://localhost') matches any port on that
  *  host — the local-dev default lists the localhost pair this way so any
- *  dev-server port can drive a local sim. */
-function corsOriginAllowed(configured: string, requestOrigin: string): boolean {
+ *  dev-server port can drive a local sim. (Shared with the worker
+ *  adapter — the same matcher must answer both transports.) */
+export function corsOriginAllowed(configured: string, requestOrigin: string): boolean {
   let parsed: URL | null = null
   try {
     parsed = new URL(requestOrigin)
@@ -147,7 +148,9 @@ function worldMutationGuard(token: string): Plugin<{ req: Request }> {
   }
 }
 
-function landing(title: string): string {
+/** The landing page (shared with the worker adapter — the same bytes
+ *  answer `/` on both transports). */
+export function landing(title: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
 <style>body{font-family:system-ui,sans-serif;margin:3rem auto;max-width:44rem;line-height:1.5}
 code{background:#f2f2f2;padding:.1em .3em;border-radius:4px}</style></head><body>
