@@ -81,6 +81,11 @@ export interface BundleSessionOptions {
    *  bundle-native face). */
   signing?: ServeSigningDecl
   signedServe?: boolean
+  /** The deployment's declared instrument identity (the spawner's
+   *  minted serial — a deployment act, the same doctrine as signing):
+   *  wins over the sample's serial_number, which stays the default
+   *  mirror. Absent → the sample's serial (the standing boots). */
+  serial?: string
 }
 
 /** A booted bundle session: the schemas + readers the HTTP surface
@@ -191,7 +196,7 @@ export async function bootBundleSession(
     `bundle://${manifest.kind}/twin-contract`,
   )
   let contract = enrichContractWithModel(baseContract, manifest, bundle.kind.mpeYaml)
-  const serial = sampleData?.serial_number
+  const serial = opts.serial ?? sampleData?.serial_number
   if (serial) contract.model.identification.serial = serial
 
   const signing = await resolveBundleSigning(manifest.signing, opts)
