@@ -41,7 +41,7 @@ new_sqlite_classes = ["SimRegistryDO"]
 # extend the comma list when a new consumer ships (the node server's
 # exact matcher runs here — port-less entries match any port on the
 # host).
-SST_CORS_ORIGINS = "https://staging-demo.oimlsmart.org"
+SST_CORS_ORIGINS = "https://demo.oimlsmart.org,https://staging-demo.oimlsmart.org,https://ia.oimlsmart.org,https://tl.oimlsmart.org"
 
 # The signed-serve posture (spec 12, opt-in): the bundled instance's
 # `signing:` block activates — every served quantity carries the
